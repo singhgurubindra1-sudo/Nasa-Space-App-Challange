@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import ChooseWorld from './screens/ChooseWorld.jsx';
 import Briefing from './screens/Briefing.jsx';
 import PlanSol from './screens/PlanSol.jsx';
@@ -7,6 +7,9 @@ import Debrief from './screens/Debrief.jsx';
 import Learn from './screens/Learn.jsx';
 import { createGame, nextSol } from './engine/engine.js';
 import { newSeed } from './engine/rng.js';
+
+// three.js scene, loaded separately so the menu and game logic stay light.
+const BaseView = lazy(() => import('./components/BaseView.jsx'));
 
 const SAVE_KEY = 'survive30sols.save.v1';
 const PREFS_KEY = 'survive30sols.prefs.v1';
@@ -37,6 +40,7 @@ export default function App() {
   const [report, setReport] = useState(null);
   const [screen, setScreen] = useState('choose');
   const [returnTo, setReturnTo] = useState('choose');
+  const [preview, setPreview] = useState(null); // live slider values from the plan screen
 
   useEffect(() => {
     store(PREFS_KEY, { world, voice });
@@ -87,6 +91,11 @@ export default function App() {
       </nav>
 
       <main>
+        {game && ['briefing', 'plan', 'event'].includes(screen) && (
+          <Suspense fallback={<div className="base-stage base-loading"><p>🛰 Landing at your base…</p></div>}>
+            <BaseView key={game.worldId} state={game} report={report} screen={screen} preview={screen === 'plan' ? preview : null} />
+          </Suspense>
+        )}
         {screen === 'choose' && (
           <ChooseWorld
             world={world}
@@ -102,7 +111,7 @@ export default function App() {
           />
         )}
         {screen === 'briefing' && game && <Briefing state={game} voice={voice} onNext={() => setScreen('plan')} />}
-        {screen === 'plan' && game && <PlanSol key={game.sol} state={game} onLaunch={launch} onBack={() => setScreen('briefing')} />}
+        {screen === 'plan' && game && <PlanSol key={game.sol} state={game} onLaunch={launch} onBack={() => setScreen('briefing')} onAllocChange={setPreview} />}
         {screen === 'event' && game && report && (
           <EventReport
             key={report.sol}

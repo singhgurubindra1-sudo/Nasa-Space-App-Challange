@@ -25,6 +25,28 @@ The start page is a 3D "Mission Control" (three.js). All eight planets and the M
 
 Orbit data: [`src/data/planets.json`](src/data/planets.json), from the [NASA Planetary Fact Sheets](https://nssdc.gsfc.nasa.gov/planetary/factsheet/) and [JPL Approximate Positions of the Planets](https://ssd.jpl.nasa.gov/planets/approx_pos.html). A test checks that Mars comes out close to Earth at its real January 2025 opposition.
 
+## 3D base view: Mars and Moon surfaces
+
+During the mission, the Briefing, Plan and Event screens show your base in 3D. Each world has its own scene, all generated in code (no image files):
+
+| | 🔴 Mars · Jezero Crater | 🌕 Moon · south pole |
+|---|---|---|
+| Sky | Butterscotch dusty sky with fog, like Perseverance photos | Black sky, stars, Earth low on the horizon |
+| Ground | Red rocky plain, hundreds of boulders, a big hill and the crater rim | Grey cratered regolith, massifs, harsh long shadows from a low Sun |
+| Power | Large flat solar array | Tall sun-tracking vertical solar arrays + a fission reactor behind a berm |
+| Shared | Habitat modules, greenhouse dome, battery bank, antenna, rover, astronauts, lander | |
+
+**The scene follows the game:**
+- **Shielding:** the regolith mound over the habitat grows with your shielding %
+- **Greenhouse:** plants grow with maturity, and grow lights brighten as you move the greenhouse slider
+- **Battery:** the LED strip shows charge (green, yellow, red)
+- **Repairs:** a red alarm beacon flashes when life support is broken or the hab leaks
+- **Dust storm (Mars):** dust blows, the sky goes brown, and the solar panels get dusty
+- **Shadow (Moon):** the Sun goes dark and the base lights come on
+- **Event animations:** particle storms flash the sky, micrometeoroids streak in, and supply landers descend with engine flames
+
+The 3D view pauses when it's scrolled off-screen, and it is skipped entirely if WebGL is unavailable.
+
 ## How the brief maps to features
 
 | The brief asks for… | Survive 30 Sols gives… |
@@ -119,6 +141,7 @@ src/engine/nova.js         Nova's briefing lines (pre-written, no live AI)
 src/engine/strategies.js   preset plans for the debrief + simulated players
 scripts/simulate.mjs       1,000-game balance script
 src/three/solarScene.js    3D Mission Control scene (three.js)
+src/three/baseScene.js     3D Mars / Moon surface base view, driven by game state
 src/engine/orbits.js       planet positions by date, Earth–target distance, radio delay
 src/screens/               the 6 screens: choose world, briefing, plan, event+report, debrief, learn+teacher
 ```

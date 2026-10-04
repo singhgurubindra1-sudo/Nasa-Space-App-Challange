@@ -14,7 +14,7 @@ const MOON_ORBIT = 1.5;
 
 // ---------- Procedural textures (no image downloads, so it works offline) ----------
 
-function seeded(seed) {
+export function seeded(seed) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -24,7 +24,7 @@ function seeded(seed) {
   };
 }
 
-function canvasTexture(w, h, draw) {
+export function canvasTexture(w, h, draw) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
@@ -51,7 +51,7 @@ function blobs(ctx, w, h, rnd, n, colors, rMin, rMax, alpha) {
   ctx.globalAlpha = 1;
 }
 
-function planetTexture(body, seed) {
+export function planetTexture(body, seed) {
   const rnd = seeded(seed);
   const [base, light, dark] = body.colors;
   return canvasTexture(512, 256, (ctx, w, h) => {
@@ -110,7 +110,7 @@ function planetTexture(body, seed) {
   });
 }
 
-function glowTexture(inner, outer) {
+export function glowTexture(inner, outer) {
   return canvasTexture(256, 256, (ctx, w) => {
     const g = ctx.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
     g.addColorStop(0, inner);

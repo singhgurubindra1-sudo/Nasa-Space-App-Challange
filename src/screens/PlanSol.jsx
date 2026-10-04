@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { conditions, forecastFor, G, WORLDS, SYSTEMS } from '../engine/engine.js';
 
 const SYS = {
@@ -16,7 +16,7 @@ const ACT = {
   shelter: { icon: '🛖', name: 'Shelter', what: 'Hide from particle storms (−75% storm dose)' },
 };
 
-export default function PlanSol({ state, onLaunch, onBack }) {
+export default function PlanSol({ state, onLaunch, onBack, onAllocChange }) {
   const w = WORLDS[state.worldId];
   const c = conditions(state);
   const [alloc, setAlloc] = useState(() => {
@@ -32,6 +32,9 @@ export default function PlanSol({ state, onLaunch, onBack }) {
     return a;
   });
   const [action, setAction] = useState(state.broken || state.leak ? 'repair' : state.lastChoices.action);
+  useEffect(() => {
+    if (onAllocChange) onAllocChange(alloc);
+  }, [alloc, onAllocChange]);
   const used = SYSTEMS.reduce((s, k) => s + Number(alloc[k]), 0);
   const left = Math.round((c.available - used) * 10) / 10;
   const net = c.generation - used;
