@@ -27,7 +27,7 @@ function labelText(id, s, c) {
 }
 
 // Persistent 3D view of the base. Stays mounted across briefing / plan / event screens.
-export default function BaseView({ state, report, screen, preview }) {
+export default function BaseView({ state, report, screen, preview, onEva }) {
   const canvasRef = useRef(null);
   const apiRef = useRef(null);
   const labelRefs = useRef({});
@@ -87,6 +87,7 @@ export default function BaseView({ state, report, screen, preview }) {
       ghPower: preview ? preview.greenhouse : state.lastChoices.alloc.greenhouse,
       lsFrac: preview ? Math.min(1, preview.lifeSupport / Math.max(1, conditions(state).lsPowerNeeded)) : 1,
       alarm: state.broken || state.leak,
+      crop: state.crop || 'mixed',
     });
     if (newId && playedRef.current !== `${report.sol}-${newId}`) {
       playedRef.current = `${report.sol}-${newId}`;
@@ -115,6 +116,7 @@ export default function BaseView({ state, report, screen, preview }) {
       </div>
       <div className="base-hud">
         <span className="space-chip">{w.emoji} {w.place}</span>
+        {onEva && <button className="space-chip eva-chip" onClick={onEva}>🧑‍🚀 EVA</button>}
         <button className="space-chip" onClick={() => setShowLabels(!showLabels)} aria-pressed={showLabels}>
           {showLabels ? 'Hide labels' : 'Show labels'}
         </button>

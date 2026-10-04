@@ -101,6 +101,7 @@ export function createGame(worldId, seed) {
     maturity: 0,
     science: 0,
     spares: 1,
+    crop: 'mixed',
     broken: false,
     leak: false,
     active: [], // ongoing multi-sol events: { id, remaining, solarFactor?, lifeSupportExtraKwh? }
@@ -109,6 +110,18 @@ export function createGame(worldId, seed) {
     history: [],
     lastChoices: defaultChoices(),
   };
+}
+
+export const CROPS = Object.fromEntries(Object.entries(G.crops).filter(([k]) => !k.startsWith('_')));
+
+export function cropFor(state) {
+  return CROPS[state.crop] || CROPS.mixed;
+}
+
+// Replanting with a different crop starts the greenhouse over from seedlings.
+export function setCrop(state, crop) {
+  if (!CROPS[crop] || (state.crop || 'mixed') === crop) return state;
+  return { ...state, crop, maturity: 0 };
 }
 
 export function defaultChoices() {
@@ -239,14 +252,15 @@ export function nextSol(state, choices) {
 
   // 4. Greenhouse.
   const gh = G.greenhouse;
+  const crop = cropFor(s);
   if (alloc.greenhouse >= gh.minPowerToSurvive) {
-    s.maturity += Math.min(1, alloc.greenhouse / gh.fullPowerKwh) / gh.solsToMature;
+    s.maturity += Math.min(1, alloc.greenhouse / gh.fullPowerKwh) / crop.solsToMature;
   } else if (s.maturity > 0) {
     s.maturity -= gh.wiltPerSol;
     msgs.push('The greenhouse got too little power and the plants wilted.');
   }
   s.maturity = clamp(s.maturity, 0, 1);
-  const grown = gh.maxFoodKgPerSol * s.maturity * Math.min(1, alloc.greenhouse / gh.fullPowerKwh);
+  const grown = crop.maxFoodKgPerSol * s.maturity * Math.min(1, alloc.greenhouse / gh.fullPowerKwh);
   s.food += grown - NEEDS.food;
   const hungry = s.food < 0;
   if (hungry) msgs.push('The food ran out. The crew went hungry!');
@@ -310,7 +324,7 @@ export function nextSol(state, choices) {
   if (s.morale < 30) s.health -= H.lowMoralePenalty;
   if (f >= 1 && !hungry && s.morale >= 50) s.health += H.recoverPerSol;
   s.morale += G.morale.dailyDrift;
-  if (s.maturity > 0.5 && alloc.greenhouse >= gh.minPowerToSurvive) s.morale += 1; // fresh salad!
+  if (s.maturity > 0.5 && alloc.greenhouse >= gh.minPowerToSurvive) s.morale += crop.moraleBonus; // fresh food!
   if (alloc.science >= 6) s.morale += 1;
   if (foodSols(Math.max(0, s.food)) < 3) s.morale -= 4;
   if (s.health < 50) s.morale -= 3;

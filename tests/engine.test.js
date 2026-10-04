@@ -97,3 +97,25 @@ describe('orbits', () => {
     expect(targetDistance('moon', 0).lightSeconds).toBeCloseTo(1.28, 1);
   });
 });
+
+import { setCrop, CROPS } from '../src/engine/engine.js';
+
+describe('greenhouse crops', () => {
+  it('replanting resets growth; same crop does nothing', () => {
+    let s = createGame('mars', 3);
+    s = { ...s, maturity: 0.6 };
+    expect(setCrop(s, 'mixed').maturity).toBe(0.6);
+    const p = setCrop(s, 'potato');
+    expect(p.crop).toBe('potato');
+    expect(p.maturity).toBe(0);
+  });
+  it('lettuce matures faster than potatoes', () => {
+    const grow = (crop) => {
+      let s = setCrop(createGame('mars', 3), crop);
+      for (let i = 0; i < 4; i++) s = nextSol(s, { alloc: { lifeSupport: 19, greenhouse: 10, shielding: 0, science: 0 }, action: 'repair' }).state;
+      return s.maturity;
+    };
+    expect(grow('lettuce')).toBeGreaterThan(grow('potato'));
+    expect(Object.keys(CROPS)).toEqual(expect.arrayContaining(['mixed', 'lettuce', 'potato', 'wheat', 'soybean']));
+  });
+});

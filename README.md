@@ -47,6 +47,19 @@ During the mission, the Briefing, Plan and Event screens show your base in 3D. E
 
 The 3D view pauses when it's scrolled off-screen, and it is skipped entirely if WebGL is unavailable.
 
+## First-person EVA (you are the Commander)
+
+From the Briefing screen (or the **🧑‍🚀 EVA** button on the 3D view), step outside in first person:
+
+- **Walk the base** with WASD and mouse look (desktop), or with PUBG-Mobile-style touch controls: a joystick, drag-to-look, and Scan, Jump, Sprint, Use and Lamp buttons.
+- **Real gravity:** jumps and rover bounces use real surface gravity (Moon 1.62 m/s², Mars 3.71 m/s²). The same hop that lifts you 0.34 m on Earth takes you about 2.1 m high on the Moon and 0.9 m on Mars.
+- **Sample scanner:** aim and click a rock to scan it. Each scan gives a real geology fact (anorthosite and the Apollo 15 Genesis Rock, south-pole ice confirmed by LCROSS, Jezero's olivine and carbonates, Opportunity's hematite "blueberries", and more). The game is weapon-free on purpose.
+- **Rover simulator:** board the pressurized rover (E), drive with a cab view or chase camera, and watch the dashboard (speed, battery, heading, pitch, roll). It has low-gravity suspension (crests launch you into the air), collisions, battery drain and recharging at the base.
+- **Greenhouse facility:** walk into the dome (plant racks, red and blue LED grow bars, a control console) and choose crops. Lettuce, potatoes, dwarf wheat and soybeans are all crops NASA has grown or studied for space (Veggie on the ISS, the Biomass Production Chamber, USU-Apogee wheat). The crop changes growth time, yield and morale in the real game.
+- **Helmet HUD:** compass strip with a beacon marker, suit O₂ (recharge at the airlock), real dose rate in µSv/h, task list, interaction prompts, and an auto helmet lamp in the dark.
+- **Detailed astronauts:** jointed suits with bearing rings, a life-support backpack, chest control module, gold visor, helmet lamps and commander stripes, plus a low-gravity walk cycle.
+- **Sound (synthesized in the browser, no files):** suit fan, breathing, footsteps through your boots, radio squelch, scanner chirps and the rover motor. On Mars you also hear wind that gets louder in dust storms. On the Moon there's no outside sound at all, because there's no air to carry it. Mute with 🔊.
+
 ## How the brief maps to features
 
 | The brief asks for… | Survive 30 Sols gives… |
@@ -141,7 +154,11 @@ src/engine/nova.js         Nova's briefing lines (pre-written, no live AI)
 src/engine/strategies.js   preset plans for the debrief + simulated players
 scripts/simulate.mjs       1,000-game balance script
 src/three/solarScene.js    3D Mission Control scene (three.js)
-src/three/baseScene.js     3D Mars / Moon surface base view, driven by game state
+src/three/world.js         shared surface world: terrain, sky, base hardware, status visuals
+src/three/baseScene.js     orbiting 3D base view
+src/three/fppScene.js      first-person EVA + rover driving simulator
+src/three/astronaut.js     detailed spacesuit model + walk cycle
+src/audio/sound.js         Web Audio sound engine (synthesized)
 src/engine/orbits.js       planet positions by date, Earth–target distance, radio delay
 src/screens/               the 6 screens: choose world, briefing, plan, event+report, debrief, learn+teacher
 ```

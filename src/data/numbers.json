@@ -143,6 +143,64 @@
     "morale": {
       "start": 80,
       "dailyDrift": -1
+    },
+    "crops": {
+      "_note": "Growth times are sped up for a 30-sol game. Real growth times are in 'realDays'.",
+      "mixed": {
+        "name": "Salad + potato mix",
+        "emoji": "🥗",
+        "solsToMature": 7,
+        "maxFoodKgPerSol": 4.0,
+        "moraleBonus": 1,
+        "realDays": "varies",
+        "fact": "A mixed garden spreads the risk: if one crop fails, the others still feed the crew.",
+        "source": "NASA: Growing plants in space",
+        "url": "https://www.nasa.gov/exploration-research-and-technology/growing-plants-in-space/"
+      },
+      "lettuce": {
+        "name": "Red romaine lettuce",
+        "emoji": "🥬",
+        "solsToMature": 4,
+        "maxFoodKgPerSol": 2.6,
+        "moraleBonus": 3,
+        "realDays": "about 33 days",
+        "fact": "In August 2015 ISS astronauts ate the first lettuce grown in space: 'Outredgeous' red romaine from NASA's Veggie unit. Fast and great for morale, but low in calories.",
+        "source": "NASA: Veggie plant growth system",
+        "url": "https://www.nasa.gov/missions/station/veggie-plant-growth-system-activated-on-international-space-station/"
+      },
+      "potato": {
+        "name": "Potatoes",
+        "emoji": "🥔",
+        "solsToMature": 10,
+        "maxFoodKgPerSol": 5.2,
+        "moraleBonus": 0,
+        "realDays": "about 90–105 days",
+        "fact": "NASA's Biomass Production Chamber at Kennedy Space Center grew potatoes, wheat, soybeans and lettuce for future bases. Potatoes give lots of calories per square metre, but take a long time.",
+        "source": "NASA Technical Reports: Biomass Production Chamber",
+        "url": "https://ntrs.nasa.gov/search?q=biomass%20production%20chamber"
+      },
+      "wheat": {
+        "name": "Dwarf wheat",
+        "emoji": "🌾",
+        "solsToMature": 8,
+        "maxFoodKgPerSol": 4.4,
+        "moraleBonus": 0,
+        "realDays": "about 60–70 days",
+        "fact": "'USU-Apogee' dwarf wheat was bred with NASA support to grow short and fast under lamps, so it fits in a small space greenhouse.",
+        "source": "NASA Technical Reports: USU-Apogee wheat",
+        "url": "https://ntrs.nasa.gov/search?q=USU-Apogee%20wheat"
+      },
+      "soybean": {
+        "name": "Soybeans",
+        "emoji": "🫘",
+        "solsToMature": 8,
+        "maxFoodKgPerSol": 4.0,
+        "moraleBonus": 1,
+        "realDays": "about 90 days",
+        "fact": "Soybeans are rich in protein and oil, so a base diet does not depend only on packaged food. NASA studied them in the Biomass Production Chamber.",
+        "source": "NASA Technical Reports: Biomass Production Chamber",
+        "url": "https://ntrs.nasa.gov/search?q=biomass%20production%20chamber%20soybean"
+      }
     }
   },
   "worlds": {

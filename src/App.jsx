@@ -5,11 +5,14 @@ import PlanSol from './screens/PlanSol.jsx';
 import EventReport from './screens/EventReport.jsx';
 import Debrief from './screens/Debrief.jsx';
 import Learn from './screens/Learn.jsx';
-import { createGame, nextSol } from './engine/engine.js';
+import { createGame, nextSol, setCrop } from './engine/engine.js';
+import GreenhousePanel from './components/GreenhousePanel.jsx';
+import { sound } from './audio/sound.js';
 import { newSeed } from './engine/rng.js';
 
 // three.js scene, loaded separately so the menu and game logic stay light.
 const BaseView = lazy(() => import('./components/BaseView.jsx'));
+const FppView = lazy(() => import('./components/FppView.jsx'));
 
 const SAVE_KEY = 'survive30sols.save.v1';
 const PREFS_KEY = 'survive30sols.prefs.v1';
@@ -41,6 +44,13 @@ export default function App() {
   const [screen, setScreen] = useState('choose');
   const [returnTo, setReturnTo] = useState('choose');
   const [preview, setPreview] = useState(null); // live slider values from the plan screen
+  const [eva, setEva] = useState(false); // first-person EVA mode
+  const [ghOpen, setGhOpen] = useState(false);
+  const changeCrop = (crop) => setGame((g) => setCrop(g, crop));
+  const openEva = () => {
+    sound.unlock();
+    setEva(true);
+  };
 
   useEffect(() => {
     store(PREFS_KEY, { world, voice });
@@ -91,9 +101,9 @@ export default function App() {
       </nav>
 
       <main>
-        {game && ['briefing', 'plan', 'event'].includes(screen) && (
+        {game && !eva && ['briefing', 'plan', 'event'].includes(screen) && (
           <Suspense fallback={<div className="base-stage base-loading"><p>🛰 Landing at your base…</p></div>}>
-            <BaseView key={game.worldId} state={game} report={report} screen={screen} preview={screen === 'plan' ? preview : null} />
+            <BaseView key={game.worldId} state={game} report={report} screen={screen} preview={screen === 'plan' ? preview : null} onEva={openEva} />
           </Suspense>
         )}
         {screen === 'choose' && (
@@ -110,7 +120,7 @@ export default function App() {
             onLearn={learn}
           />
         )}
-        {screen === 'briefing' && game && <Briefing state={game} voice={voice} onNext={() => setScreen('plan')} />}
+        {screen === 'briefing' && game && <Briefing state={game} voice={voice} onNext={() => setScreen('plan')} onEva={openEva} onGreenhouse={() => setGhOpen(true)} />}
         {screen === 'plan' && game && <PlanSol key={game.sol} state={game} onLaunch={launch} onBack={() => setScreen('briefing')} onAllocChange={setPreview} />}
         {screen === 'event' && game && report && (
           <EventReport
@@ -125,6 +135,13 @@ export default function App() {
         )}
         {screen === 'learn' && <Learn onBack={() => setScreen(returnTo === 'learn' ? 'choose' : returnTo)} />}
       </main>
+
+      {eva && game && (
+        <Suspense fallback={<div className="fpp fpp-loading"><p>🧑‍🚀 Suiting up…</p></div>}>
+          <FppView state={game} onSetCrop={changeCrop} onClose={() => setEva(false)} />
+        </Suspense>
+      )}
+      {ghOpen && game && <GreenhousePanel state={game} onSetCrop={changeCrop} onClose={() => setGhOpen(false)} />}
 
       <footer className="footer">
         Built for NASA Space Apps 2026 with real NASA data. Not an official NASA product.
