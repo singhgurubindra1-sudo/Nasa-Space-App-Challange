@@ -38,12 +38,17 @@ export default function App() {
   const [screen, setScreen] = useState('choose');
   const [returnTo, setReturnTo] = useState('choose');
 
-  useEffect(() => store(PREFS_KEY, { world, voice }), [world, voice]);
+  useEffect(() => {
+    store(PREFS_KEY, { world, voice });
+  }, [world, voice]);
   useEffect(() => {
     if (game && game.status === 'playing') store(SAVE_KEY, game);
     else if (game) store(SAVE_KEY, null);
   }, [game]);
-  useEffect(() => window.scrollTo(0, 0), [screen]);
+  useEffect(() => {
+    // Braces matter: some browser extensions make scrollTo return a value, which React would treat as a cleanup function.
+    window.scrollTo(0, 0);
+  }, [screen]);
 
   const start = (w = world) => {
     setWorld(w);
