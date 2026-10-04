@@ -11,5 +11,6 @@ export default defineConfig({
   plugins: [react()],
   server: { host: true, allowedHosts },
   preview: { host: true, allowedHosts },
+  build: { chunkSizeWarningLimit: 700 },
   test: { include: ['tests/**/*.test.js'] },
 });

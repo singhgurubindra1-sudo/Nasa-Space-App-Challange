@@ -14,6 +14,17 @@ A turn-based outpost game where students (ages 10–15) keep a crew of 4 alive o
 
 Survive 30 Sols puts students in charge of a lunar or Martian outpost. Each sol they split one power budget between life support, food, shielding and storage, then face events drawn from real NASA missions, like the 2018 Mars dust storm. A debrief shows the decision that saved or ended their mission, making engineering trade-offs something kids feel, not just read.
 
+## Mission Control: 3D solar system
+
+The start page is a 3D "Mission Control" (three.js). All eight planets and the Moon orbit the Sun with their **real orbital periods**, starting from where they **really are today** (JPL mean longitudes, circular-orbit approximation). Tap the Moon or Mars, either in 3D or with the buttons below it, and the camera flies to it. The target panel then shows live numbers for that world: today's distance from Earth, the radio-message delay, travel time, gravity, day length, temperature and surface radiation.
+
+- Drag to rotate, pinch or scroll to zoom, and set the sim speed (pause, 1, 8 or 40 days per second)
+- Sizes and distances are squeezed so the outer planets fit on a phone, and the page says so
+- Textures are drawn in code (no image downloads), and three.js loads separately so the game screens stay fast
+- If WebGL is off, the page falls back to the normal world buttons
+
+Orbit data: [`src/data/planets.json`](src/data/planets.json), from the [NASA Planetary Fact Sheets](https://nssdc.gsfc.nasa.gov/planetary/factsheet/) and [JPL Approximate Positions of the Planets](https://ssd.jpl.nasa.gov/planets/approx_pos.html). A test checks that Mars comes out close to Earth at its real January 2025 opposition.
+
 ## How the brief maps to features
 
 | The brief asks for… | Survive 30 Sols gives… |
@@ -107,6 +118,8 @@ src/engine/turningPoint.js counterfactual replays to find the decision that matt
 src/engine/nova.js         Nova's briefing lines (pre-written, no live AI)
 src/engine/strategies.js   preset plans for the debrief + simulated players
 scripts/simulate.mjs       1,000-game balance script
+src/three/solarScene.js    3D Mission Control scene (three.js)
+src/engine/orbits.js       planet positions by date, Earth–target distance, radio delay
 src/screens/               the 6 screens: choose world, briefing, plan, event+report, debrief, learn+teacher
 ```
 

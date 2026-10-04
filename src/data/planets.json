@@ -1,0 +1,48 @@
+{
+  "_readme": "Orbits for the Mission Control solar system. Semi-major axis (au), sidereal orbital period (days), mean radius (km) from the NASA Planetary Fact Sheets. Mean longitude at J2000 from JPL 'Approximate Positions of the Planets' (Standish), so the planets start where they really are today (circular-orbit approximation).",
+  "sources": [
+    { "label": "NASA Planetary Fact Sheets", "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/" },
+    { "label": "JPL Solar System Dynamics: Approximate Positions of the Planets", "url": "https://ssd.jpl.nasa.gov/planets/approx_pos.html" },
+    { "label": "NASA Moon Fact Sheet", "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html" }
+  ],
+  "sunRadiusKm": 695700,
+  "auKm": 149597871,
+  "planets": [
+    { "id": "mercury", "name": "Mercury", "au": 0.387, "periodDays": 87.97, "radiusKm": 2440, "meanLongitudeJ2000Deg": 252.25, "look": "rocky", "colors": ["#8c8680", "#b5afa8", "#5e5a55"] },
+    { "id": "venus", "name": "Venus", "au": 0.723, "periodDays": 224.70, "radiusKm": 6052, "meanLongitudeJ2000Deg": 181.98, "look": "cloudy", "colors": ["#d9b77a", "#ecd6a4", "#b8925a"] },
+    { "id": "earth", "name": "Earth", "au": 1.0, "periodDays": 365.26, "radiusKm": 6371, "meanLongitudeJ2000Deg": 100.46, "look": "earth", "colors": ["#1f4e9c", "#3f8f4a", "#ffffff"] },
+    { "id": "mars", "name": "Mars", "au": 1.524, "periodDays": 686.98, "radiusKm": 3390, "meanLongitudeJ2000Deg": 355.45, "look": "mars", "colors": ["#b8532c", "#d9824f", "#7a3420"], "target": true },
+    { "id": "jupiter", "name": "Jupiter", "au": 5.203, "periodDays": 4332.59, "radiusKm": 69911, "meanLongitudeJ2000Deg": 34.40, "look": "gas", "colors": ["#c9a27a", "#efe0c4", "#9c6b45"] },
+    { "id": "saturn", "name": "Saturn", "au": 9.537, "periodDays": 10759.22, "radiusKm": 58232, "meanLongitudeJ2000Deg": 49.95, "look": "gas", "colors": ["#d8c08c", "#f1e3bb", "#b39a66"], "rings": true },
+    { "id": "uranus", "name": "Uranus", "au": 19.19, "periodDays": 30688.5, "radiusKm": 25362, "meanLongitudeJ2000Deg": 313.24, "look": "ice", "colors": ["#9fd8dd", "#c4ecef", "#7fc0c6"] },
+    { "id": "neptune", "name": "Neptune", "au": 30.07, "periodDays": 60182, "radiusKm": 24622, "meanLongitudeJ2000Deg": 304.88, "look": "ice", "colors": ["#3f63d6", "#6d8ff0", "#2a43a3"] }
+  ],
+  "moon": {
+    "id": "moon", "name": "Moon", "distanceKm": 384400, "periodDays": 27.3217, "radiusKm": 1737.4, "meanLongitudeJ2000Deg": 218.32,
+    "look": "moon", "colors": ["#9a9a9a", "#c8c8c8", "#6b6b6b"], "target": true
+  },
+  "targets": {
+    "moon": {
+      "gravity": "1.62 m/s² (about 1/6 of Earth's)",
+      "day": "29.5 Earth days from sunrise to sunrise",
+      "temperature": "about 120 °C in daytime to −130 °C at night",
+      "travel": "about 3 days (Apollo 11, 1969)",
+      "radiation": "1.37 mSv per day",
+      "sources": [
+        { "label": "NASA Moon Fact Sheet", "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html" },
+        { "label": "NASA: Moon facts", "url": "https://science.nasa.gov/moon/facts/" }
+      ]
+    },
+    "mars": {
+      "gravity": "3.71 m/s² (about 3/8 of Earth's)",
+      "day": "24 h 40 min (one sol)",
+      "temperature": "about −65 °C on average",
+      "travel": "about 7 months (Perseverance: July 2020 → Feb 2021)",
+      "radiation": "0.67 mSv per day",
+      "sources": [
+        { "label": "NASA Mars Fact Sheet", "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html" },
+        { "label": "NASA: Perseverance mission", "url": "https://science.nasa.gov/mission/mars-2020-perseverance/" }
+      ]
+    }
+  }
+}

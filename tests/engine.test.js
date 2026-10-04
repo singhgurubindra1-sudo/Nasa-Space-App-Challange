@@ -78,3 +78,22 @@ describe('turning point', () => {
     expect(tp.text.length).toBeGreaterThan(20);
   });
 });
+
+import { distanceKm, targetDistance, daysSinceJ2000 } from '../src/engine/orbits.js';
+
+describe('orbits', () => {
+  it('Earth–Mars distance stays between closest and farthest real values', () => {
+    for (let d = 0; d < 3000; d += 37) {
+      const km = distanceKm('earth', 'mars', d);
+      expect(km).toBeGreaterThan(50e6);
+      expect(km).toBeLessThan(410e6);
+    }
+  });
+  it('Mars was near opposition (close to Earth) in mid-January 2025', () => {
+    const km = distanceKm('earth', 'mars', daysSinceJ2000(Date.UTC(2025, 0, 16)));
+    expect(km).toBeLessThan(110e6); // real: ~96 million km
+  });
+  it('Moon radio delay is about 1.3 seconds', () => {
+    expect(targetDistance('moon', 0).lightSeconds).toBeCloseTo(1.28, 1);
+  });
+});
