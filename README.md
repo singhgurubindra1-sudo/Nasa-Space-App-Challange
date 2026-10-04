@@ -87,7 +87,7 @@ MARS  first-try player wins 45.8% | careful player wins 99.0%
 
 ```bash
 npm install
-npm run dev        # play locally at http://localhost:5173
+npm start          # play locally at http://localhost:5173 (also: npm run dev)
 npm test           # engine tests
 npm run simulate   # balance test (1,000 games per world)
 npm run build      # production build in dist/
