@@ -1,0 +1,131 @@
+{
+  "_readme": "Event cards. 'weight' = how often it is picked per world (0 = never). 'forecast' = what Nova says in the morning briefing when it is coming (null = surprise). Effects are applied by src/engine/engine.js.",
+  "events": [
+    {
+      "id": "dust_storm",
+      "emoji": "🌪",
+      "title": "Dust storm!",
+      "worlds": { "mars": 4 },
+      "durationMin": 3,
+      "durationMax": 5,
+      "forecast": "Dust levels rising over Jezero. A storm may roll in tonight.",
+      "effectText": "Solar power −60% for {d} sols.",
+      "effect": { "solarFactor": 0.4 },
+      "why": {
+        "title": "Why can dust end a mission?",
+        "text": "Dust in the air blocks sunlight, and dust on the panels blocks even more. In June 2018 a planet-wide dust storm darkened the sky over NASA's Opportunity rover. Its solar panels could not make enough power, the rover went silent, and after more than 1,000 recovery commands NASA ended the mission in February 2019 — after almost 15 years and 45 km of driving. A charged battery and a power source that doesn't need the Sun (like a reactor) are the backup.",
+        "source": "NASA: Opportunity rover mission summary",
+        "url": "https://science.nasa.gov/mission/mer-opportunity/"
+      }
+    },
+    {
+      "id": "solar_flare",
+      "emoji": "☀",
+      "title": "Solar particle storm!",
+      "worlds": { "moon": 3, "mars": 2 },
+      "durationMin": 1,
+      "durationMax": 1,
+      "forecast": "The Sun just flared. NASA's space weather office expects a particle storm to arrive today. Shelter recommended!",
+      "effectText": "Radiation spike today. Shielding and sheltering cut the dose.",
+      "effect": { "flare": true },
+      "why": {
+        "title": "Why do astronauts need a storm shelter?",
+        "text": "Sometimes the Sun throws out a burst of fast protons. On Earth our atmosphere and magnetic field stop them, but the Moon has neither, and Mars has only thin air. NASA's Moon to Mars Space Weather Analysis Office tracks these events live in a database called DONKI. Astronauts plan to hide in the best-shielded part of the hab, behind water, food and regolith, until the storm passes. Unlike cosmic rays, these protons are fairly easy to block.",
+        "source": "NASA CCMC: DONKI space weather database",
+        "url": "https://kauai.ccmc.gsfc.nasa.gov/DONKI/"
+      }
+    },
+    {
+      "id": "lunar_shadow",
+      "emoji": "🌑",
+      "title": "Into the shadow",
+      "worlds": { "moon": 4 },
+      "durationMin": 3,
+      "durationMax": 5,
+      "forecast": "The Sun is dropping behind the crater rim. A long shadow will cover our panels from tonight.",
+      "effectText": "No solar power for {d} days: reactor and battery only.",
+      "effect": { "solarFactor": 0.0 },
+      "why": {
+        "title": "Why does the Moon go dark for so long?",
+        "text": "The Moon spins slowly, so at most places night lasts about 14 Earth days. Near the south pole the Sun just skims the horizon. NASA's Lunar Reconnaissance Orbiter mapped crater rims that are lit most of the time — that's why Artemis wants to land there — but mountains and crater walls still cast long shadows for days. During the dark, only stored energy and a reactor keep the heaters and air running.",
+        "source": "NASA: Moon facts and LRO illumination studies",
+        "url": "https://science.nasa.gov/moon/facts/"
+      }
+    },
+    {
+      "id": "part_failure",
+      "emoji": "🔧",
+      "title": "Life support part failed",
+      "worlds": { "moon": 2, "mars": 2 },
+      "durationMin": 1,
+      "durationMax": 1,
+      "forecast": null,
+      "effectText": "Life support runs at 50% until you Repair it.",
+      "effect": { "breakLifeSupport": true },
+      "why": {
+        "title": "Why carry spare parts?",
+        "text": "On the International Space Station, crews regularly repair and replace life-support hardware such as pumps, filters and the oxygen generator. On the Moon or Mars, a new part from Earth takes days or months to arrive, so bases need spares, tools, and crew time for repairs. Spending power on 'science & repair' today keeps your workshop ready for tomorrow.",
+        "source": "NASA: ISS Environmental Control and Life Support System",
+        "url": "https://www.nasa.gov/reference/environmental-control-and-life-support-systems-eclss/"
+      }
+    },
+    {
+      "id": "micrometeoroid",
+      "emoji": "☄",
+      "title": "Micrometeoroid hit!",
+      "worlds": { "moon": 2 },
+      "durationMin": 1,
+      "durationMax": 1,
+      "forecast": null,
+      "effectText": "A tiny hole! The hab leaks 1.5 kg of oxygen each day until you Repair it.",
+      "effect": { "leak": true },
+      "why": {
+        "title": "Why can a grain of dust make a hole?",
+        "text": "On Earth, small space rocks burn up in the air as shooting stars. The Moon has no air, so they hit the ground at up to 70 km per second — faster than a bullet by far. NASA's LRO camera has spotted fresh craters forming. Habitats use layered shields, and a regolith cover protects against these hits as well as radiation.",
+        "source": "NASA: Meteoroid Environment Office",
+        "url": "https://www.nasa.gov/meteoroid-environment-office/"
+      }
+    },
+    {
+      "id": "cold_snap",
+      "emoji": "🥶",
+      "title": "Cold snap",
+      "worlds": { "mars": 3 },
+      "durationMin": 2,
+      "durationMax": 3,
+      "forecast": "MEDA weather station shows a cold front. Tonight could drop below −80 °C.",
+      "effectText": "Heating costs +6 kWh for {d} sols.",
+      "effect": { "lifeSupportExtraKwh": 6 },
+      "why": {
+        "title": "Why is Mars so cold at night?",
+        "text": "Mars's air is about 100 times thinner than Earth's, so it can't hold heat. Perseverance's MEDA weather station in Jezero Crater measures temperature swings of more than 50 °C between afternoon and night. Heaters for the hab, water lines and batteries all need extra power when it gets that cold.",
+        "source": "NASA: Perseverance MEDA weather instrument",
+        "url": "https://science.nasa.gov/mission/mars-2020-perseverance/science-instruments/"
+      }
+    },
+    {
+      "id": "supply_lander",
+      "emoji": "📦",
+      "title": "Supply lander arrived!",
+      "worlds": { "moon": 1, "mars": 1 },
+      "durationMin": 1,
+      "durationMax": 1,
+      "forecast": "Mission control confirms a cargo lander is on final approach. Good news incoming!",
+      "effectText": "+30 kg food, +1 spare part, +5 kg oxygen.",
+      "effect": { "food": 30, "spares": 1, "o2": 5 },
+      "why": {
+        "title": "Why send cargo separately?",
+        "text": "NASA's Artemis plans use cargo landers to deliver supplies, rovers and habitat parts ahead of and between crews. Sending cargo without people is cheaper and safer. But a base can't count on every delivery arriving on time, so it still needs its own margins.",
+        "source": "NASA: Artemis Human Landing System and cargo landers",
+        "url": "https://www.nasa.gov/reference/human-landing-systems/"
+      }
+    }
+  ],
+  "calm": {
+    "id": "calm",
+    "emoji": "✨",
+    "title": "A calm day",
+    "effectText": "Nothing went wrong. Your crew gets on with the work.",
+    "falseAlarm": "The forecast didn't come true this time. Space weather forecasting is still hard, even for NASA."
+  }
+}

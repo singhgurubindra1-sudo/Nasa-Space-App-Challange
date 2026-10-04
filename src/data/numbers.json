@@ -1,0 +1,200 @@
+{
+  "_readme": "Every number the game uses lives here so non-coders can balance the game. 'nasa' entries are real-world values with a source; 'game' entries are design choices built from them. Rounded for 10-15 year olds.",
+  "nasa": {
+    "o2PerAstronautKg": {
+      "value": 0.82,
+      "unit": "kg per crew member per day",
+      "label": "Oxygen breathed by one astronaut",
+      "source": "NASA Life Support Baseline Values and Assumptions Document (BVAD), NASA/TP-2015-218570/REV1",
+      "url": "https://ntrs.nasa.gov/citations/20180001338"
+    },
+    "waterPerAstronautKg": {
+      "value": 2.5,
+      "unit": "kg per crew member per day",
+      "label": "Drinking water + water in food for one astronaut",
+      "source": "NASA BVAD, NASA/TP-2015-218570/REV1",
+      "url": "https://ntrs.nasa.gov/citations/20180001338"
+    },
+    "foodPerAstronautKg": {
+      "value": 1.8,
+      "unit": "kg per crew member per day (packaged)",
+      "label": "Packaged food for one astronaut",
+      "source": "NASA BVAD, NASA/TP-2015-218570/REV1",
+      "url": "https://ntrs.nasa.gov/citations/20180001338"
+    },
+    "waterRecovery": {
+      "value": 0.98,
+      "unit": "fraction of water recycled",
+      "label": "Water the ISS life-support system can recycle",
+      "source": "NASA: ISS Environmental Control and Life Support System reached 98% water recovery (June 2023)",
+      "url": "https://www.nasa.gov/missions/station/iss-research/nasa-achieves-water-recovery-milestone-on-international-space-station/"
+    },
+    "marsSunlight": {
+      "value": 0.43,
+      "unit": "fraction of sunlight at Earth",
+      "label": "Sunlight reaching Mars (Mars is about 1.5x farther from the Sun)",
+      "source": "NASA Mars Fact Sheet: solar irradiance 586 W/m2 at Mars vs 1361 W/m2 at Earth",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html"
+    },
+    "marsDoseMsvPerDay": {
+      "value": 0.67,
+      "unit": "mSv per day",
+      "label": "Radiation dose on the surface of Mars (cosmic rays)",
+      "source": "Curiosity RAD instrument, Hassler et al., Science 343 (2014); NASA/JPL",
+      "url": "https://www.science.org/doi/10.1126/science.1244797"
+    },
+    "moonDoseMsvPerDay": {
+      "value": 1.37,
+      "unit": "mSv per day",
+      "label": "Radiation dose on the surface of the Moon (cosmic rays)",
+      "source": "Chang'e-4 Lunar Lander Neutrons and Dosimetry (LND), Zhang et al., Science Advances 6 (2020): 1,369 microSv/day",
+      "url": "https://www.science.org/doi/10.1126/sciadv.aaz1334"
+    },
+    "careerDoseLimitMsv": {
+      "value": 600,
+      "unit": "mSv per career",
+      "label": "NASA career radiation limit for astronauts",
+      "source": "NASA-STD-3001 Vol. 1 (2022 update): 600 mSv career effective dose limit",
+      "url": "https://www.nasa.gov/wp-content/uploads/2023/03/radiation-protection-technical-brief-ochmo.pdf"
+    },
+    "lunarNightDays": {
+      "value": 14,
+      "unit": "Earth days",
+      "label": "Length of a night at most places on the Moon",
+      "source": "NASA Moon facts; LRO illumination maps show some south-pole rims are lit most of the time",
+      "url": "https://science.nasa.gov/moon/facts/"
+    },
+    "kilopowerKwe": {
+      "value": 10,
+      "unit": "kW (electric), day and night",
+      "label": "Small fission reactor power (Kilopower designs: 1 to 10 kWe)",
+      "source": "NASA Kilopower / KRUSTY test (2018) and Fission Surface Power project",
+      "url": "https://www.nasa.gov/exploration-systems-development-mission-directorate/fission-surface-power/"
+    },
+    "marsSolHours": {
+      "value": 24.66,
+      "unit": "hours",
+      "label": "Length of one sol (Mars day)",
+      "source": "NASA Mars Fact Sheet",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/marsfact.html"
+    },
+    "moxieGramsPerHour": {
+      "value": 12,
+      "unit": "grams of O2 per hour (best run)",
+      "label": "Oxygen made from Martian air by MOXIE on Perseverance",
+      "source": "NASA/JPL: MOXIE completes Mars mission (Sept 2023), 122 g total, up to 12 g/hour",
+      "url": "https://www.jpl.nasa.gov/news/nasas-oxygen-generating-experiment-moxie-completes-mars-mission/"
+    }
+  },
+  "game": {
+    "crew": 4,
+    "sols": 30,
+    "doseLimitMsv": 50,
+    "doseLimitNote": "One-twelfth of NASA's 600 mSv career limit, so one month on the surface can't use up more than a fair share.",
+    "batteryCapacityKwh": 60,
+    "batteryStartKwh": 30,
+    "batteryChargeEfficiency": 0.9,
+    "batteryDeadSolsToLose": 2,
+    "lifeSupportNeedKwh": 16,
+    "sliderMax": {
+      "lifeSupport": 24,
+      "greenhouse": 12,
+      "shielding": 12,
+      "science": 12
+    },
+    "o2TankKg": 16,
+    "o2StartKg": 16,
+    "waterTankKg": 150,
+    "waterStartKg": 110,
+    "foodStartKg": 110,
+    "foodMaxKg": 220,
+    "greenhouse": {
+      "maxFoodKgPerSol": 4.0,
+      "solsToMature": 7,
+      "fullPowerKwh": 10,
+      "minPowerToSurvive": 3,
+      "wiltPerSol": 0.25,
+      "plantBoost": 0.2
+    },
+    "shielding": {
+      "percentPerKwh": 1.2,
+      "buildActionPercent": 8,
+      "maxCosmicRayBlock": 0.6,
+      "maxFlareBlock": 0.9
+    },
+    "science": {
+      "pointsPerKwh": 1,
+      "exploreMars": 12,
+      "exploreMoon": 8,
+      "starTarget": 110
+    },
+    "shelter": {
+      "flareFactor": 0.25,
+      "cosmicFactor": 0.8
+    },
+    "health": {
+      "start": 100,
+      "coldThreshold": 0.75,
+      "coldPenalty": 40,
+      "hungerPenalty": 12,
+      "lowMoralePenalty": 3,
+      "recoverPerSol": 3
+    },
+    "morale": {
+      "start": 80,
+      "dailyDrift": -1
+    }
+  },
+  "worlds": {
+    "moon": {
+      "id": "moon",
+      "name": "Moon",
+      "place": "South pole crater rim (Artemis region)",
+      "emoji": "🌕",
+      "turnLabel": "Day",
+      "turnNote": "On the Moon each turn is one Earth day.",
+      "reactorKwhPerSol": 24,
+      "reactorNote": "A 1 kWe Kilopower-class fission reactor running all day = 24 kWh, sun or no sun.",
+      "solarClearKwhPerSol": 30,
+      "arrayNote": "Sunlight at the Moon is as strong as at Earth, but at the pole it comes in sideways, so panels stand upright and turn with the Sun.",
+      "doseMsvPerSol": 1.37,
+      "flareDoseMsv": 24,
+      "exploreDoseMsv": 0.5,
+      "exploreWaterKg": 25,
+      "lifeSupportExtraKwh": 0,
+      "helpFromEarth": "3 days away",
+      "lesson": "Store energy and shield the hab.",
+      "facts": [
+        "No air: higher radiation and micrometeoroids reach the ground.",
+        "Some south-pole crater rims are sunny most of the time, but shadows still pass.",
+        "Ice in shadowed craters nearby can be mined for water.",
+        "Help from Earth is about 3 days away."
+      ]
+    },
+    "mars": {
+      "id": "mars",
+      "name": "Mars",
+      "place": "Jezero Crater (Perseverance landing site)",
+      "emoji": "🔴",
+      "turnLabel": "Sol",
+      "turnNote": "On Mars each turn is one sol: 24 hours 39 minutes.",
+      "reactorKwhPerSol": 0,
+      "reactorNote": "No reactor yet: this base runs on sunlight and batteries, like the Opportunity rover did.",
+      "solarClearKwhPerSol": 50,
+      "arrayNote": "Mars gets only 43% of Earth's sunlight, so this base brings a huge solar array: on a clear sol it makes 50 kWh.",
+      "doseMsvPerSol": 0.67,
+      "flareDoseMsv": 8,
+      "exploreDoseMsv": 0.25,
+      "exploreWaterKg": 0,
+      "lifeSupportExtraKwh": 3,
+      "helpFromEarth": "6 to 9 months away",
+      "lesson": "Build margins and backups.",
+      "facts": [
+        "Weaker sunlight, and dust storms can block most of it.",
+        "Thin air gives a little protection from radiation.",
+        "CO2 in the air can be turned into oxygen (MOXIE proved it).",
+        "Help from Earth is months away."
+      ]
+    }
+  }
+}
