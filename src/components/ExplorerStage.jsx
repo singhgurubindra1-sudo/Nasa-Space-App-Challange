@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { createExplorer, KIND_COLORS } from '../three/explorerScene.js';
+import SunSlider from './SunSlider.jsx';
 import { satelliteElements, brightestSatellites, closeApproaches, asteroidOrbit, NASA_KEY_IS_DEMO } from '../live/live.js';
 import catalog from '../data/spacecraft.json' with { type: 'json' };
 import asteroids from '../data/asteroids.json' with { type: 'json' };
@@ -305,6 +306,7 @@ export default function ExplorerStage({ onMission }) {
               </button>
             )}
             <button className="ex-chip" onClick={() => { setSelId(null); apiRef.current && apiRef.current.home(); }}>🔭 Reset view</button>
+            {mode === 'solar' && <SunSlider onChange={(b) => apiRef.current && apiRef.current.setSunBrightness(b)} />}
           </div>
         </div>
 

@@ -14,6 +14,7 @@ import { starSky, realEarth, atmosphereShell } from './realism.js';
 import { createPost } from './post.js';
 import { getQuality } from './quality.js';
 import { createGovernor } from './perf.js';
+import { getSunBrightness, applySunBrightness } from './sunBrightness.js';
 import { seeded, canvasTexture, planetTexture, glowTexture, sunMesh, sceneRadius } from './solarScene.js';
 import { PLANETS } from '../engine/orbits.js';
 import {
@@ -252,13 +253,16 @@ function squeeze(v, out = new THREE.Vector3()) {
 function buildSolar({ quality }) {
   const scene = new THREE.Scene();
   scene.add(new THREE.AmbientLight(0x30384d, 0.35));
-  scene.add(new THREE.PointLight(0xfff4e0, 3.2, 0, 0));
+  const sunLight = new THREE.PointLight(0xfff4e0, 3.2, 0, 0);
+  scene.add(sunLight);
   scene.add(starSky(2400, 1.0));
   const sun = sunMesh(2.6);
   scene.add(sun);
   const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,236,170,1)', 'rgba(255,160,40,.45)'), blending: THREE.AdditiveBlending, depthWrite: false }));
   sunGlow.scale.set(11, 11, 1);
   scene.add(sunGlow);
+  const sunParts = { sun, glow: sunGlow, light: sunLight };
+  applySunBrightness(getSunBrightness(), sunParts);
   // main asteroid belt (decorative)
   {
     const rnd = seeded(3);
@@ -434,6 +438,7 @@ function buildSolar({ quality }) {
       sun.material.uniforms.time.value += dt;
     },
     readout,
+    setSunBrightness: (b) => applySunBrightness(b, sunParts),
     setAsteroidOrbit(id, res) {
       const o = objects.find((x) => x.id === `a-${id}`);
       if (!o || !res || !res.data) return;
@@ -1327,6 +1332,9 @@ export function createExplorer({ canvas, onSelect, onContextLost, reducedMotion 
     setAsteroidOrbit(id, res) {
       pendingLive.orbits[id] = res;
       if (modes.solar) modes.solar.setAsteroidOrbit(id, res);
+    },
+    setSunBrightness(b) {
+      if (modes.solar) modes.solar.setSunBrightness(b);
     },
     marsTime: () => marsTime(simNow()),
     onLabels(cb) {

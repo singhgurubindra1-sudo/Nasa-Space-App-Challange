@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createSolarScene } from '../three/solarScene.js';
 import { daysSinceJ2000, dateFromDays } from '../engine/orbits.js';
+import SunSlider from './SunSlider.jsx';
 
 const LABELS = {
   sun: 'Sun', mercury: 'Mercury', venus: 'Venus', earth: 'Earth', jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune',
@@ -159,6 +160,7 @@ export default function SolarSystem({ selected, focused, onSelect, onOverview, o
       </div>
 
       <div className="space-hud space-hud-bottom">
+        <SunSlider onChange={(b) => apiRef.current && apiRef.current.setSunBrightness(b)} />
         {focused ? (
           <button className="space-chip" onClick={onOverview}>🔭 Back to solar system</button>
         ) : (
