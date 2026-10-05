@@ -5,8 +5,11 @@
   "description": "A turn-based outpost game where students keep a crew alive on the Moon or Mars for 30 sols, using real NASA numbers. NASA Space Apps 2026.",
   "type": "module",
   "scripts": {
+    "prestart": "node scripts/ensure-deps.mjs",
     "start": "vite --host",
+    "predev": "node scripts/ensure-deps.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/ensure-deps.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
