@@ -4,6 +4,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PLANETS, MOON, orbitAngle } from '../engine/orbits.js';
+import { tex } from './assets.js';
+import { starSky } from './realism.js';
+import { createPost } from './post.js';
+import { getQuality } from './quality.js';
+
+// Real maps (NASA imagery) where we have them; the rest stay procedural.
+const REAL_MAPS = { mars: 'mars', jupiter: 'jupiter', saturn: 'saturn', neptune: 'neptune', venus: 'venus' };
 
 const TARGET_COLORS = { moon: '#e2e8f0', mars: '#ff7a45' };
 
@@ -158,14 +165,18 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
     if (onContextLost) onContextLost();
   };
   canvas.addEventListener('webglcontextlost', onLost);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const quality = getQuality();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setClearColor(0x04060d, 1);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.setClearColor(0x000000, 1);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 2000);
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 4000);
   camera.position.set(0, 34, 52);
 
+  const post = createPost(renderer, scene, camera, quality, { worldId: 'space', bloom: 0.55, bloomThreshold: 0.9 });
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
@@ -176,41 +187,37 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
   controls.autoRotateSpeed = 0.35;
 
   // Lights: the Sun is the light source.
-  scene.add(new THREE.AmbientLight(0x404a66, 0.55));
-  const sunLight = new THREE.PointLight(0xfff1d6, 2.2, 0, 0);
+  scene.add(new THREE.AmbientLight(0x30384d, 0.35));
+  const sunLight = new THREE.PointLight(0xfff4e0, 3.2, 0, 0);
   scene.add(sunLight);
 
-  // Stars
-  {
-    const rnd = seeded(7);
-    const n = 2600;
-    const pos = new Float32Array(n * 3);
-    const col = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) {
-      const u = rnd() * 2 - 1;
-      const t = rnd() * Math.PI * 2;
-      const r = 400 + rnd() * 300;
-      const s = Math.sqrt(1 - u * u);
-      pos.set([r * s * Math.cos(t), r * u, r * s * Math.sin(t)], i * 3);
-      const tint = 0.75 + rnd() * 0.25;
-      col.set([tint, tint, 0.85 + rnd() * 0.15], i * 3);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    scene.add(new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true })));
-  }
+  // The real night sky: NASA's Hipparcos star map
+  scene.add(starSky(1600, 1.1));
 
   // Sun
-  const sun = new THREE.Mesh(
-    new THREE.SphereGeometry(2.6, 48, 32),
-    new THREE.MeshBasicMaterial({
-      map: planetTexture({ look: 'rocky', colors: ['#ffb534', '#ffe08a', '#ff8a1f'] }, 11),
-    }),
-  );
+  const sunMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0 } },
+    vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vV; void main(){ vP = position; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `
+      uniform float time; varying vec3 vP; varying vec3 vN; varying vec3 vV;
+      float h(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float n(vec3 p){ vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
+        return mix(mix(mix(h(i), h(i+vec3(1,0,0)), f.x), mix(h(i+vec3(0,1,0)), h(i+vec3(1,1,0)), f.x), f.y),
+                   mix(mix(h(i+vec3(0,0,1)), h(i+vec3(1,0,1)), f.x), mix(h(i+vec3(0,1,1)), h(i+vec3(1,1,1)), f.x), f.y), f.z); }
+      void main(){
+        vec3 p = normalize(vP) * 6.0;
+        float g = n(p + time * 0.15) * 0.5 + n(p * 2.3 - time * 0.2) * 0.3 + n(p * 6.0 + time * 0.3) * 0.2; // granulation
+        float limb = pow(max(dot(vN, vV), 0.0), 0.45); // limb darkening, as seen on the real Sun
+        vec3 col = mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.92, 0.65), g) * (0.55 + 0.75 * limb);
+        gl_FragColor = vec4(col * 3.2, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const sun = new THREE.Mesh(new THREE.SphereGeometry(2.6, 64, 48), sunMat);
   scene.add(sun);
   const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,236,170,1)', 'rgba(255,160,40,.45)'), blending: THREE.AdditiveBlending, depthWrite: false }));
-  sunGlow.scale.set(16, 16, 1);
+  sunGlow.scale.set(11, 11, 1);
   scene.add(sunGlow);
 
   // Asteroid belt between Mars and Jupiter
@@ -240,7 +247,9 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
     const size = bodySize(p.radiusKm);
     const mesh = new THREE.Mesh(
       new THREE.SphereGeometry(size, 48, 32),
-      new THREE.MeshStandardMaterial({ map: planetTexture(p, 100 + i), roughness: 0.9, metalness: 0 }),
+      p.id === 'earth'
+        ? new THREE.MeshStandardMaterial({ map: tex('textures/planets/earth.jpg'), normalMap: tex('textures/planets/earth_normal.jpg', { srgb: false }), roughness: 0.7, metalness: 0 })
+        : new THREE.MeshStandardMaterial({ map: REAL_MAPS[p.id] ? tex(`textures/planets/${REAL_MAPS[p.id]}.jpg`) : planetTexture(p, 100 + i), roughness: 0.9, metalness: 0 }),
     );
     mesh.userData = { id: p.id, name: p.name };
     mesh.rotation.z = (p.id === 'uranus' ? 98 : p.id === 'earth' ? 23.4 : p.id === 'mars' ? 25.2 : p.id === 'saturn' ? 26.7 : 3) * (Math.PI / 180);
@@ -275,8 +284,12 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
       holder.add(ring);
     }
     if (p.id === 'earth') {
+      const clouds = new THREE.Mesh(new THREE.SphereGeometry(size * 1.015, 48, 32), new THREE.MeshStandardMaterial({ map: tex('textures/planets/earth_clouds.png'), transparent: true, depthWrite: false, roughness: 1 }));
+      clouds.rotation.z = mesh.rotation.z;
+      holder.add(clouds);
+      mesh.userData.clouds = clouds;
       const atmo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(120,180,255,.0)', 'rgba(90,160,255,.35)'), blending: THREE.AdditiveBlending, depthWrite: false }));
-      atmo.scale.set(size * 3.2, size * 3.2, 1);
+      atmo.scale.set(size * 2.6, size * 2.6, 1);
       holder.add(atmo);
     }
     scene.add(holder);
@@ -290,7 +303,7 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
   earth.holder.add(moonOrbit);
   const moonMesh = new THREE.Mesh(
     new THREE.SphereGeometry(0.3, 40, 24),
-    new THREE.MeshStandardMaterial({ map: planetTexture(MOON, 42), roughness: 1 }),
+    new THREE.MeshStandardMaterial({ map: tex('textures/planets/moon.jpg'), roughness: 1 }),
   );
   moonMesh.userData = { id: 'moon', name: 'Moon' };
   const moonHolder = new THREE.Group();
@@ -397,6 +410,8 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
     // Spin planets and the Sun a little.
     for (const id in bodies) bodies[id].mesh.rotation.y += dt * (id === 'moon' ? 0.05 : 0.25);
     sun.rotation.y += dt * 0.03;
+    sunMat.uniforms.time.value += dt;
+    if (bodies.earth.mesh.userData.clouds) bodies.earth.mesh.userData.clouds.rotation.y += dt * 0.05;
 
     // Pulsing target markers.
     const t = elapsed;
@@ -437,7 +452,7 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
       if (!hop && Math.abs(len - want) < 0.05 * want && lagOffset.length() < 0.02) flying = false;
     }
     controls.update();
-    renderer.render(scene, camera);
+    post.render(dt);
 
     // Screen positions for HTML labels.
     if (labelCb) {
@@ -467,6 +482,7 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
     const h = canvas.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
+    post.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
   }
@@ -515,6 +531,7 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
           o.material.dispose();
         }
       });
+      post.dispose();
       renderer.dispose();
     },
   };

@@ -8,42 +8,6 @@ import { glowTexture } from './solarScene.js';
 
 const metal = (c, r = 0.35, m = 0.8) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
 
-function ingenuity() {
-  // Real size: 0.49 m tall, rotors 1.2 m across.
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.14, 0.14), metal('#d9d9d9', 0.5, 0.3));
-  body.position.y = 0.2;
-  g.add(body);
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.38, 6), metal('#c8c8c8'));
-    leg.position.set(Math.cos(a) * 0.12, 0.13, Math.sin(a) * 0.12);
-    leg.rotation.z = Math.cos(a) * 0.55;
-    leg.rotation.x = -Math.sin(a) * 0.55;
-    g.add(leg);
-  }
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.28, 8), metal('#a0a0a0'));
-  mast.position.y = 0.4;
-  g.add(mast);
-  const bladeM = metal('#2b2b2b', 0.6, 0.2);
-  for (const [y, rot] of [[0.33, 0.3], [0.41, 1.4]]) {
-    for (const side of [-1, 1]) {
-      // One blade lost about a quarter of its length on the final flight
-      const len = y === 0.41 && side === 1 ? 0.42 : 0.58;
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(len, 0.008, 0.07), bladeM);
-      blade.position.set((side * len) / 2, y, 0);
-      const holder = new THREE.Group();
-      holder.add(blade);
-      holder.rotation.y = rot;
-      g.add(holder);
-    }
-  }
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.01, 0.2), new THREE.MeshStandardMaterial({ color: '#1e3a8a', metalness: 0.5, roughness: 0.3 }));
-  panel.position.y = 0.55;
-  g.add(panel);
-  return g;
-}
-
 function tippedLander() {
   // Hexagonal lander about 4 m tall, lying on its side with legs sticking out
   const g = new THREE.Group();
@@ -106,7 +70,8 @@ export function buildHeritage(scene, worldId, heightAt) {
   };
 
   if (worldId === 'mars') {
-    const ing = place(ingenuity(), 27, -31, 0, 0.6);
+    // NASA's official Ingenuity model is placed here by realism.js; this marks the spot
+    const ing = { position: new THREE.Vector3(27, 0, -31) };
     const broken = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.008, 0.06), new THREE.MeshStandardMaterial({ color: '#2b2b2b' }));
     place(broken, 28.6, -30.2, 0.01, 1.1);
     sites.push({
@@ -114,7 +79,14 @@ export function buildHeritage(scene, worldId, heightAt) {
       label: 'Ingenuity helicopter (historic site)',
       x: ing.position.x, z: ing.position.z, r: 3,
       title: '🚁 NASA Ingenuity Mars Helicopter',
-      text: "On 19 April 2021 Ingenuity made the first powered, controlled flight on another planet. It was planned for 5 flights but made 72, flying about 17 km in total. On its last flight, in January 2024, part of a rotor blade broke off (look nearby). It is only 49 cm tall, and it still sits here in Jezero Crater.",
+      text: "On 19 April 2021 Ingenuity made the first powered, controlled flight on another planet. It was planned for 5 flights but made 72, flying about 17 km in total. On its last flight, in January 2024, part of a rotor blade broke off (look nearby). It is only 49 cm tall, and it still sits in Jezero Crater. This is NASA's official 3D model.",
+    });
+    sites.push({
+      id: 'perseverance',
+      label: 'Perseverance rover (NASA model)',
+      x: -20, z: -14, r: 4.5,
+      title: '🤖 NASA Perseverance rover',
+      text: "Perseverance landed in Jezero Crater on 18 February 2021 to look for signs of ancient microbial life and to collect rock samples for a future return to Earth. It is about 3 m long, 2.7 m wide and 2.2 m tall, and it weighs 1,025 kg (on Mars it feels like about 390 kg). It also carried Ingenuity and MOXIE. This is NASA's official 3D model, at real size.",
     });
     const zig = [[-38, 18], [-35, 21], [-32, 18], [-29, 21], [-26, 18], [-23, 21], [-20, 18], [-17, 21], [-14, 18], [-11, 21]];
     zig.forEach(([x, z], i) => place(sampleTube(), x, z, 0.02, i * 0.7));

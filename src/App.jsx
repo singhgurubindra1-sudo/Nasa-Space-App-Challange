@@ -9,6 +9,7 @@ import { createGame, nextSol, setCrop } from './engine/engine.js';
 import GreenhousePanel from './components/GreenhousePanel.jsx';
 import { applyCrewTask, shareMeal, analyzeSamples } from './engine/crew.js';
 import { sound } from './audio/sound.js';
+import GraphicsMenu from './components/GraphicsMenu.jsx';
 import { newSeed } from './engine/rng.js';
 
 // three.js scene, loaded separately so the menu and game logic stay light.
@@ -101,6 +102,7 @@ export default function App() {
           🚀 <span>Survive 30 Sols</span>
         </button>
         <div className="topbar-actions">
+          <GraphicsMenu />
           <button className="icon-btn" onClick={() => setVoice(!voice)} aria-pressed={voice} title="Nova's voice">
             {voice ? '🔊' : '🔈'} <span className="hide-sm">Voice</span>
           </button>

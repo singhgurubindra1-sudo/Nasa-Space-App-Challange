@@ -3,11 +3,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildWorld } from './world.js';
+import { createPost } from './post.js';
+import { getQuality } from './quality.js';
 
 export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost }) {
   const small = Math.min(window.innerWidth, window.innerHeight) < 700;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 1.5 : 1.75));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !getQuality().post, powerPreference: 'high-performance' });
+  const quality = getQuality();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
@@ -35,8 +38,9 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
   const stopAuto = () => { controls.autoRotate = false; };
   controls.addEventListener('start', stopAuto);
 
-  const world = buildWorld(scene, worldId, { renderer, small });
+  const world = buildWorld(scene, worldId, { renderer, quality, small });
   const { labels, target } = world;
+  const post = createPost(renderer, scene, camera, quality, { worldId, bloom: worldId === 'moon' ? 0.45 : 0.3 });
   let disposed = false;
   let last = performance.now();
   let elapsed = 0;
@@ -62,7 +66,7 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
     world.tick(dt, elapsed);
 
     controls.update();
-    renderer.render(scene, camera);
+    post.render(dt);
 
     if (labelCb) {
       const rect = canvas.getBoundingClientRect();
@@ -83,6 +87,7 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
     const h = canvas.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
+    post.setSize(w, h);
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     // Pull back on portrait screens so the base fits.
@@ -123,6 +128,7 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
           });
         }
       });
+      post.dispose();
       renderer.dispose();
     },
   };

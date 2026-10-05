@@ -426,3 +426,17 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 
   .crew-strip { top: 54px; left: auto; right: 10px; bottom: auto; width: 170px; }
 }
 .btn.on { background: var(--accent); color: var(--accent-ink); }
+
+/* Graphics quality menu */
+.gfx { position: relative; }
+.gfx-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 80; width: 260px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px; box-shadow: 0 12px 40px rgba(0,0,0,.5); display: flex; flex-direction: column; gap: 4px; color: var(--text); }
+.gfx-menu b { padding: 4px 6px; }
+.gfx-menu button { text-align: left; background: var(--surface-2); border: 1px solid transparent; border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; }
+.gfx-menu button.on { border-color: var(--accent); }
+.gfx-menu small { color: var(--muted); font-size: .72rem; }
+.fpp-top-btns .gfx .icon-btn { background: rgba(5,10,20,.6); color: #e8f4ff; }
+@media (max-width: 420px) {
+  .brand span { display: none; }
+  .topbar-actions { gap: 4px; }
+  .topbar .icon-btn { padding: 8px 10px; }
+}

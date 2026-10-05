@@ -1,12 +1,15 @@
 // The surface world shared by the 3D base view and the first-person mode: Jezero Crater (Mars) or the lunar south pole (Moon).
-// Everything is generated in code (terrain, rocks, sky, base modules), so it works offline.
+// Terrain, rocks and base modules are generated in code; skies, planets and some hardware use
+// NASA imagery and models from /public (see realism.js).
 // The scene reacts to the game: shielding mound height, greenhouse growth, battery lights,
 // dust storms, lunar shadow, alarms, and event animations (flares, micrometeoroids, landers).
 import * as THREE from 'three';
-import { seeded, canvasTexture, planetTexture, glowTexture } from './solarScene.js';
-import { PLANETS } from '../engine/orbits.js';
+import { seeded, canvasTexture, glowTexture } from './solarScene.js';
 import { createAstronaut, animateAstronaut } from './astronaut.js';
 import { JUNIORS } from '../engine/crew.js';
+import { buildTerrainPBR, buildRocksPBR, marsSkyPBR, realEarth, starSky, sunFlare, makeEnvironment, PBR, addNasaModels } from './realism.js';
+import { tex } from './assets.js';
+import { getQuality } from './quality.js';
 
 // ---------- Noise ----------
 function makeNoise(seed) {
@@ -63,9 +66,9 @@ const LOOKS = {
     fog: 0.0075,
     sunElev: 34,
     sunAz: 140,
-    sunColor: '#ffe6cc',
-    sunIntensity: 2.6,
-    hemi: ['#e3b07c', '#5c301b', 1.0],
+    sunColor: '#fff0e2',
+    sunIntensity: 2.9,
+    hemi: ['#d9bfa4', '#5c3a26', 0.6],
     rocks: 900,
   },
   moon: {
@@ -126,150 +129,8 @@ function makeHeightFn(worldId) {
   };
 }
 
-function grainTexture(seed, light) {
-  const rnd = seeded(seed);
-  const t = canvasTexture(256, 256, (ctx, w, h) => {
-    const img = ctx.createImageData(w, h);
-    for (let i = 0; i < w * h; i++) {
-      const v = light ? 205 + rnd() * 50 : 180 + rnd() * 75;
-      img.data.set([v, v, v, 255], i * 4);
-    }
-    ctx.putImageData(img, 0, 0);
-    for (let i = 0; i < 160; i++) {
-      ctx.fillStyle = `rgba(0,0,0,${0.04 + rnd() * 0.08})`;
-      ctx.beginPath();
-      ctx.arc(rnd() * w, rnd() * h, 1 + rnd() * 6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
-}
-
-function buildTerrain(worldId, heightAt, look) {
-  const SIZE = 520;
-  const SEG = 260;
-  const geo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
-  geo.rotateX(-Math.PI / 2);
-  const pos = geo.attributes.position;
-  for (let i = 0; i < pos.count; i++) pos.setY(i, heightAt(pos.getX(i), pos.getZ(i)));
-  geo.computeVertexNormals();
-  const nrm = geo.attributes.normal;
-  const { fbm } = makeNoise(worldId === 'mars' ? 3 : 4);
-  const [dark, mid, light] = look.ground.map((c) => new THREE.Color(c));
-  const colors = new Float32Array(pos.count * 3);
-  const c = new THREE.Color();
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const z = pos.getZ(i);
-    const n = fbm(x * 0.04, z * 0.04) * 0.5 + 0.5;
-    const slope = 1 - nrm.getY(i);
-    c.copy(mid).lerp(light, Math.max(0, n - 0.35) * 1.4);
-    c.lerp(dark, Math.min(1, slope * 3.2 + (1 - n) * 0.25));
-    colors.set([c.r, c.g, c.b], i * 3);
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const grain = grainTexture(worldId === 'mars' ? 21 : 22, worldId === 'moon');
-  grain.repeat.set(90, 90);
-  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, map: grain, bumpMap: grain, bumpScale: 1.2, roughness: 1, metalness: 0 });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-function buildRocks(worldId, heightAt, look, count) {
-  const rnd = seeded(worldId === 'mars' ? 77 : 88);
-  const geo = new THREE.IcosahedronGeometry(1, 2);
-  const p = geo.attributes.position;
-  const { noise } = makeNoise(5);
-  for (let i = 0; i < p.count; i++) {
-    const v = new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i));
-    const k = 0.72 + 0.45 * (noise(v.x * 1.7 + 3, v.z * 1.7 + v.y * 2.1) * 0.5 + 0.5);
-    v.multiplyScalar(k);
-    v.y *= worldId === 'mars' ? 0.62 : 0.7;
-    p.setXYZ(i, v.x, v.y, v.z);
-  }
-  geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({ color: look.rock, roughness: 0.95, metalness: 0, flatShading: true });
-  const mesh = new THREE.InstancedMesh(geo, mat, count);
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const e = new THREE.Euler();
-  const col = new THREE.Color();
-  const base = new THREE.Color(look.rock);
-  const big = [];
-  for (let i = 0; i < count; i++) {
-    let x;
-    let z;
-    let d;
-    do {
-      const a = rnd() * Math.PI * 2;
-      d = 9 + Math.pow(rnd(), 1.6) * 150;
-      x = Math.cos(a) * d;
-      z = Math.sin(a) * d;
-    } while ((d < 15 && rnd() < 0.85) || Math.hypot(x + 9, z - 9) < 6.5 || d < 11); // keep the base area and greenhouse clear
-    const s = (0.08 + Math.pow(rnd(), 3.2) * (worldId === 'mars' ? 1.7 : 1.3)) * (d > 60 ? 1.6 : 1);
-    e.set(rnd() * 0.6, rnd() * Math.PI * 2, rnd() * 0.6);
-    q.setFromEuler(e);
-    m.compose(new THREE.Vector3(x, heightAt(x, z) + s * 0.15, z), q, new THREE.Vector3(s * (0.8 + rnd() * 0.6), s, s * (0.8 + rnd() * 0.6)));
-    mesh.setMatrixAt(i, m);
-    if (s > 0.7) big.push({ x, z, r: s * 1.1 });
-    col.copy(base).multiplyScalar(0.75 + rnd() * 0.45);
-    mesh.setColorAt(i, col);
-  }
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  mesh.userData.big = big;
-  return mesh;
-}
 
 // ---------- Sky ----------
-function marsSky(look, sunDir) {
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide,
-    depthWrite: false,
-    fog: false,
-    uniforms: {
-      top: { value: new THREE.Color(look.skyTop) },
-      horizon: { value: new THREE.Color(look.skyHorizon) },
-      stormColor: { value: new THREE.Color(look.stormColor) },
-      sunDir: { value: sunDir.clone() },
-      storm: { value: 0 },
-      flash: { value: 0 },
-    },
-    vertexShader: 'varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: `
-      varying vec3 vDir; uniform vec3 top, horizon, stormColor, sunDir; uniform float storm, flash;
-      void main(){
-        float h = clamp(vDir.y, 0.0, 1.0);
-        vec3 c = mix(horizon, top, pow(h, 0.55));
-        float s = max(dot(normalize(vDir), normalize(sunDir)), 0.0);
-        c += vec3(1.0, 0.97, 0.9) * pow(s, 400.0) * 1.4 * (1.0 - storm);
-        c += vec3(0.75, 0.8, 0.85) * pow(s, 18.0) * 0.22 * (1.0 - storm); // Mars has bluish light near the Sun
-        c = mix(c, stormColor, storm * 0.85);
-        c += vec3(1.0, 0.95, 0.8) * flash;
-        gl_FragColor = vec4(c, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
-  });
-  return new THREE.Mesh(new THREE.SphereGeometry(900, 32, 16), mat);
-}
-
-function starField(n, seed) {
-  const rnd = seeded(seed);
-  const pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const u = rnd() * 0.98 + 0.02;
-    const t = rnd() * Math.PI * 2;
-    const s = Math.sqrt(1 - u * u);
-    pos.set([800 * s * Math.cos(t), 800 * u, 800 * s * Math.sin(t)], i * 3);
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  return new THREE.Points(g, new THREE.PointsMaterial({ size: 1.5, sizeAttenuation: false, color: 0xdde6ff, fog: false }));
-}
-
 // ---------- Base hardware ----------
 const M = {
   white: () => new THREE.MeshStandardMaterial({ color: '#e9ecef', roughness: 0.55, metalness: 0.15 }),
@@ -414,7 +275,8 @@ function lander(tall) {
 // ---------- World ----------
 // Builds sky, terrain, rocks and the base into `scene`. Returns handles plus tick(dt, elapsed)
 // which animates lighting, the base status visuals and event effects.
-export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true }) {
+export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true, quality = getQuality() }) {
+  Object.assign(M, PBR); // realistic PBR materials for all base hardware
   const look = LOOKS[worldId];
   const gravity = worldId === 'moon' ? 1.62 : 3.71;
   let autoRover = true;
@@ -424,25 +286,24 @@ export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true
   // Sky, fog, lights
   let sky = null;
   if (worldId === 'mars') {
-    sky = marsSky(look, sunDir);
+    sky = marsSkyPBR(look, sunDir);
     scene.add(sky);
-    scene.fog = new THREE.FogExp2(new THREE.Color(look.skyHorizon), look.fog);
+    scene.fog = new THREE.FogExp2(new THREE.Color('#d6a883'), look.fog);
+    scene.add(sunFlare(sunDir, 0.45));
   } else {
     scene.background = new THREE.Color('#000000');
-    scene.add(starField(2200, 13));
-    // Earth hangs low over the horizon, as seen from the lunar south pole.
-    const earthData = PLANETS.find((p) => p.id === 'earth');
-    const earth = new THREE.Mesh(new THREE.SphereGeometry(11, 48, 32), new THREE.MeshStandardMaterial({ map: planetTexture(earthData, 103), roughness: 0.8, fog: false }));
+    scene.add(starSky(1500, 0.85)); // NASA Hipparcos star map: the real Milky Way
+    // Earth hangs low over the horizon, as seen from the lunar south pole (NASA Blue Marble imagery).
+    const earth = realEarth(11);
     earth.position.setFromSphericalCoords(600, THREE.MathUtils.degToRad(84), THREE.MathUtils.degToRad(222));
+    earth.rotation.z = 0.41;
     scene.add(earth);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(140,190,255,0)', 'rgba(110,170,255,.35)'), blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-    glow.position.copy(earth.position);
-    glow.scale.set(40, 40, 1);
-    scene.add(glow);
-    const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,255,255,1)', 'rgba(255,240,210,.5)'), blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-    sunGlow.position.copy(sunDir).multiplyScalar(700);
-    sunGlow.scale.set(60, 60, 1);
+    // The Sun: a dazzling disc in a black sky (no air to scatter its light)
+    const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,255,255,1)', 'rgba(255,245,230,.25)'), blending: THREE.AdditiveBlending, depthWrite: false, fog: false, color: new THREE.Color(6, 6, 6) }));
+    sunGlow.position.copy(sunDir).multiplyScalar(900);
+    sunGlow.scale.set(42, 42, 1);
     scene.add(sunGlow);
+    scene.add(sunFlare(sunDir, 1.0));
     // Earthshine: faint bluish fill from Earth's direction
     const earthshine = new THREE.DirectionalLight('#9fb8ff', 0.35);
     earthshine.position.copy(earth.position).normalize().multiplyScalar(100);
@@ -453,17 +314,23 @@ export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true
   const sun = new THREE.DirectionalLight(look.sunColor, look.sunIntensity);
   sun.position.copy(sunDir).multiplyScalar(120);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(small ? 1024 : 2048, small ? 1024 : 2048);
+  sun.shadow.mapSize.set(quality.shadowMap, quality.shadowMap);
   const sc = sun.shadow.camera;
-  sc.left = -55; sc.right = 55; sc.top = 55; sc.bottom = -55; sc.near = 10; sc.far = 320;
+  sc.left = -48; sc.right = 48; sc.top = 48; sc.bottom = -48; sc.near = 10; sc.far = 320;
+  // Image-based lighting: reflections on visors, metal and solar panels
+  if (renderer) {
+    scene.environment = makeEnvironment(renderer, worldId, sky);
+    scene.environmentIntensity = worldId === 'mars' ? 0.38 : 0.3;
+  }
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
   scene.add(sun.target);
 
-  scene.add(buildTerrain(worldId, heightAt, look));
-  const rocks = buildRocks(worldId, heightAt, look, look.rocks);
+  scene.add(buildTerrainPBR(worldId, heightAt, look, quality));
+  const rocks = buildRocksPBR(worldId, heightAt, look, quality).group;
   scene.add(rocks);
+  addNasaModels(scene, worldId, heightAt);
 
   // ---------- The base ----------
   const base = new THREE.Group();
@@ -496,9 +363,12 @@ export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true
   base.add(alarmLight);
 
   // Regolith shielding mound over the living module (grows with shielding %)
-  const regolithMat = new THREE.MeshStandardMaterial({ color: look.ground[1], roughness: 1, map: grainTexture(31, worldId === 'moon'), bumpScale: 1 });
-  regolithMat.map.repeat.set(6, 6);
-  regolithMat.bumpMap = regolithMat.map;
+  const regolithMat = new THREE.MeshStandardMaterial({
+    color: worldId === 'mars' ? '#f2d6c4' : '#e6e6e6',
+    roughness: 1,
+    map: tex(`textures/surface/${worldId}_albedo.jpg`, { repeat: 3 }),
+    normalMap: tex(`textures/surface/${worldId}_normal.jpg`, { srgb: false, repeat: 3 }),
+  });
   const mound = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), regolithMat);
   mound.position.set(-2.5, ground(-2.5, 0) - 0.05, 0);
   mound.scale.set(5.4, 0.05, 2.9);
@@ -912,6 +782,7 @@ export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true
   }
   for (let r = 0; r < 3; r++) colliders.push({ x: ghPos.x - 0.6, z: ghPos.z - 2.2 + r * 2.2, r: 0.45, w: 2.4 }); // racks (capsules along x)
   colliders.push(...rocks.userData.big);
+  if (worldId === 'mars') colliders.push({ x: -20, z: -14, r: 2.1 }, { x: 27, z: -31, r: 0.6 }); // Perseverance, Ingenuity
   const ghWall = { x: ghPos.x, z: ghPos.z, r: GH_R, doorAngle: 0, doorHalf: 0.3 };
   const interactables = [
     { id: 'airlock', label: 'Recharge suit at the airlock', x: 6.2, z: 0, r: 2.6 },

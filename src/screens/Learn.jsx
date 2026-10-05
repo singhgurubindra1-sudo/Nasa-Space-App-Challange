@@ -134,7 +134,7 @@ export default function Learn({ onBack }) {
           </div>
           <div className="card">
             <h3>AI use (disclosure)</h3>
-            <p className="muted">This project was built with help from an AI coding assistant (Claude), which drafted code, Nova's lines and the “Why?” text. Every number and story was checked against the NASA and peer-reviewed sources listed in the NASA data tab. Nova's voice uses your browser's built-in text-to-speech. No live AI is called while you play, and no AI-generated images are used: all art is emoji and hand-made SVG.</p>
+            <p className="muted">This project was built with help from an AI coding assistant (Claude), which drafted code, Nova's lines and the “Why?” text. Every number and story was checked against the NASA and peer-reviewed sources listed in the NASA data tab. Nova's voice uses your browser's built-in text-to-speech. No live AI is called while you play, and no AI-generated images are used: the 3D art uses NASA's public-domain imagery and models (Perseverance, Ingenuity, planet maps, the Hipparcos star map), code-generated textures, emoji and hand-made SVG.</p>
           </div>
         </>
       )}

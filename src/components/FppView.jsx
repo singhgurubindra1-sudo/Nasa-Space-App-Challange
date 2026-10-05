@@ -4,6 +4,7 @@ import { sound } from '../audio/sound.js';
 import { G, WORLDS } from '../engine/engine.js';
 import GreenhousePanel from './GreenhousePanel.jsx';
 import CrewPanel from './CrewPanel.jsx';
+import GraphicsMenu from './GraphicsMenu.jsx';
 import { JUNIORS } from '../engine/crew.js';
 import { forecastFor } from '../engine/engine.js';
 
@@ -253,6 +254,7 @@ export default function FppView({ state, onClose, onSetCrop, onCrewTask, onComma
         <div className="fpp-top-btns">
           <button className="icon-btn" onClick={() => { const m = !muted; setMuted(m); sound.setMuted(m); }} aria-pressed={!muted} title="Sound">{muted ? '🔇' : '🔊'}</button>
           <button className="icon-btn crew-btn" onClick={() => setCrewOpen(true)} title="Crew command (Q)">👥 <span className="hide-sm">Crew</span></button>
+          <GraphicsMenu />
           <button className="icon-btn" onClick={() => setHelp(true)} title="Controls">❔</button>
           <button className="icon-btn" onClick={onClose} title="Back to mission">✕ <span className="hide-sm">Exit EVA</span></button>
         </div>

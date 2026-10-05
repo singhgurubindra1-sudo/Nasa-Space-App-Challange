@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { canvasTexture } from './solarScene.js';
+import { tex } from './assets.js';
 
 let shared = null;
 function materials() {
@@ -36,15 +37,17 @@ function materials() {
     ctx.beginPath(); ctx.ellipse(64, 96, 40, 6, -0.3, 0, Math.PI * 2); ctx.fill();
   });
   shared = {
-    suit: new THREE.MeshStandardMaterial({ color: '#f4f4ef', map: weave, roughness: 0.88, metalness: 0 }),
-    hard: new THREE.MeshStandardMaterial({ color: '#e8e8e4', roughness: 0.45, metalness: 0.1 }),
-    ring: new THREE.MeshStandardMaterial({ color: '#9aa3ad', roughness: 0.35, metalness: 0.85 }),
-    glove: new THREE.MeshStandardMaterial({ color: '#d9d9d2', roughness: 0.8 }),
-    boot: new THREE.MeshStandardMaterial({ color: '#cfcfca', roughness: 0.75 }),
+    // Ortho-fabric outer layer: woven normal map + soft sheen, like real EVA suits
+    suit: new THREE.MeshPhysicalMaterial({ color: '#f1f0ea', roughness: 0.86, metalness: 0, sheen: 0.7, sheenRoughness: 0.75, sheenColor: new THREE.Color('#ffffff'), normalMap: tex('textures/surface/fabric_normal.jpg', { srgb: false, repeat: 3 }), normalScale: new THREE.Vector2(0.6, 0.6) }),
+    hard: new THREE.MeshPhysicalMaterial({ color: '#ebebe6', roughness: 0.32, metalness: 0.05, clearcoat: 0.5, clearcoatRoughness: 0.2 }),
+    ring: new THREE.MeshStandardMaterial({ color: '#b8c0c8', roughness: 0.22, metalness: 1 }),
+    glove: new THREE.MeshPhysicalMaterial({ color: '#d6d4cc', roughness: 0.8, sheen: 0.5, sheenColor: new THREE.Color('#ffffff'), normalMap: tex('textures/surface/fabric_normal.jpg', { srgb: false, repeat: 6 }), normalScale: new THREE.Vector2(0.4, 0.4) }),
+    boot: new THREE.MeshPhysicalMaterial({ color: '#cbcac4', roughness: 0.78, sheen: 0.4, normalMap: tex('textures/surface/fabric_normal.jpg', { srgb: false, repeat: 4 }), normalScale: new THREE.Vector2(0.5, 0.5) }),
     sole: new THREE.MeshStandardMaterial({ color: '#2b2b2b', roughness: 0.95 }),
     stripe: new THREE.MeshStandardMaterial({ color: '#c81e1e', roughness: 0.7 }),
-    visor: new THREE.MeshStandardMaterial({ color: '#d4a338', roughness: 0.12, metalness: 1, emissive: '#2a1a00', emissiveIntensity: 0.3 }),
-    bubble: new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.18, depthWrite: false }),
+    // Gold-coated sun visor: a near-perfect mirror that reflects the landscape
+    visor: new THREE.MeshPhysicalMaterial({ color: '#e2b257', roughness: 0.04, metalness: 1, clearcoat: 1, clearcoatRoughness: 0.02 }),
+    bubble: new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.0, metalness: 0, transparent: true, opacity: 0.14, depthWrite: false, clearcoat: 1, clearcoatRoughness: 0 }),
     dark: new THREE.MeshStandardMaterial({ color: '#30363d', roughness: 0.6, metalness: 0.4 }),
     lamp: new THREE.MeshStandardMaterial({ color: '#fffbe6', emissive: '#fff4c2', emissiveIntensity: 1.6 }),
     screen: new THREE.MeshStandardMaterial({ color: '#0a1a2a', emissive: '#29b6f6', emissiveIntensity: 0.9 }),

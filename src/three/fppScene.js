@@ -2,6 +2,10 @@
 // console, and drive the pressurized rover. Real surface gravity drives every jump and bounce.
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { tex } from './assets.js';
+import { createPost } from './post.js';
+import { getQuality } from './quality.js';
 import { buildInterior } from './habInterior.js';
 import { buildHeritage, createFootprints } from './heritage.js';
 import { createCrewSim } from './crewSim.js';
@@ -43,8 +47,9 @@ const BEACON = { mars: [-22, -58], moon: [52, -38] };
 
 export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   const small = Math.min(window.innerWidth, window.innerHeight) < 700;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !small, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, small ? 1.25 : 1.5));
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !getQuality().post, powerPreference: 'high-performance' });
+  const quality = getQuality();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality.pixelRatio));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
@@ -60,9 +65,10 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   camera.rotation.order = 'YXZ';
   scene.add(camera);
 
-  const world = buildWorld(scene, worldId, { renderer, small, ambientCrew: false });
+  const world = buildWorld(scene, worldId, { renderer, quality, small, ambientCrew: false });
   const { heightAt, gravity, colliders, ghWall, interactables } = world;
   world.setAutoRover(false);
+  const post = createPost(renderer, scene, camera, quality, { worldId, bloom: worldId === 'moon' ? 0.45 : 0.3 });
   const interior = buildInterior(scene, worldId);
   const heritage = buildHeritage(scene, worldId, heightAt);
   const footprints = createFootprints(scene, worldId);
@@ -80,7 +86,9 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   {
     const suit = new THREE.MeshStandardMaterial({ color: '#efefea', roughness: 0.85 });
     const ringM = new THREE.MeshStandardMaterial({ color: '#9aa3ad', metalness: 0.85, roughness: 0.35 });
-    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.42, 6, 12), suit);
+    suit.normalMap = tex('textures/surface/fabric_normal.jpg', { srgb: false, repeat: 3 });
+    suit.normalScale = new THREE.Vector2(0.6, 0.6);
+    const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.42, 8, 20), suit);
     sleeve.rotation.x = Math.PI / 2 - 0.25;
     sleeve.position.set(0.3, -0.3, -0.42);
     vm.add(sleeve);
@@ -92,10 +100,10 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     glove.scale.set(1.1, 0.8, 1.3);
     glove.position.set(0.3, -0.24, -0.7);
     vm.add(glove);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.28), new THREE.MeshStandardMaterial({ color: '#f5f5f0', roughness: 0.5 }));
+    const body = new THREE.Mesh(new RoundedBoxGeometry(0.095, 0.085, 0.3, 4, 0.025), new THREE.MeshPhysicalMaterial({ color: '#e9e9e4', roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.15 }));
     body.position.set(0.29, -0.19, -0.78);
     vm.add(body);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.06), new THREE.MeshStandardMaterial({ color: '#333a42' }));
+    const grip = new THREE.Mesh(new RoundedBoxGeometry(0.05, 0.13, 0.065, 3, 0.015), new THREE.MeshStandardMaterial({ color: '#2b3138', roughness: 0.7 }));
     grip.position.set(0.29, -0.25, -0.72);
     vm.add(grip);
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.034, 0.05, 16), new THREE.MeshStandardMaterial({ color: '#111', emissive: '#38bdf8', emissiveIntensity: 1.2 }));
@@ -565,15 +573,15 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       spark.intensity = Math.max(0, beamT / 0.35) * 8;
     }
 
-    renderer.render(scene, camera);
+    post.render(dt);
 
     // Aim check (is a rock in the crosshair?)
     aimT -= dt;
     if (aimT <= 0 && mode === 'walk' && space === 'outside' && !watching) {
       aimT = 0.12;
       raycaster.setFromCamera(center, camera);
-      const hit = raycaster.intersectObject(world.rocks, false)[0];
-      aimRock = !!(hit && !scanned.has(hit.instanceId));
+      const hit = raycaster.intersectObject(world.rocks, true).find((h) => !h.object.userData.pebbles);
+      aimRock = !!(hit && !scanned.has(`${hit.object.id}:${hit.instanceId}`));
     }
 
     // Name tags above the juniors (positioned every frame by the React layer)
@@ -636,6 +644,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     const h = canvas.clientHeight;
     if (!w || !h) return;
     renderer.setSize(w, h, false);
+    post.setSize(w, h);
     camera.aspect = w / h;
     camera.fov = camera.aspect < 0.8 ? 80 : 72;
     camera.updateProjectionMatrix();
@@ -804,7 +813,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       if (paused || mode !== 'walk' || space !== 'outside' || watching) return;
       sound.unlock();
       raycaster.setFromCamera(center, camera);
-      const hit = raycaster.intersectObject(world.rocks, false)[0];
+      const hit = raycaster.intersectObject(world.rocks, true).find((h) => !h.object.userData.pebbles);
       vm.userData.tip.getWorldPosition(tmpV);
       const end = hit ? hit.point : tmpV2.copy(raycaster.ray.direction).multiplyScalar(7).add(raycaster.ray.origin);
       beam.geometry.setFromPoints([tmpV.clone(), end.clone()]);
@@ -813,13 +822,14 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       beamT = 0.35;
       sound.scan();
       if (!hit) return;
-      if (scanned.has(hit.instanceId)) {
+      const rockKey = `${hit.object.id}:${hit.instanceId}`;
+      if (scanned.has(rockKey)) {
         cb.onToast && cb.onToast({ title: 'Already scanned', text: 'Find a different rock.' });
         return;
       }
-      scanned.add(hit.instanceId);
+      scanned.add(rockKey);
       const facts = ROCK_FACTS[worldId];
-      const f = facts[hit.instanceId % facts.length];
+      const f = facts[(hit.instanceId + (hit.object.userData.proto || 0)) % facts.length];
       taskDone('scan');
       scannedCount += 1;
       setTimeout(() => sound.success(), 350);
@@ -865,6 +875,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
           });
         }
       });
+      post.dispose();
       renderer.dispose();
     },
   };
