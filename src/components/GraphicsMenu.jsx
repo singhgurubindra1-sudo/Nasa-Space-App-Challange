@@ -19,10 +19,11 @@ export default function GraphicsMenu({ className = 'icon-btn' }) {
         <div className="gfx-menu" role="menu">
           <b>Graphics quality</b>
           {[
-            ['auto', `Auto (${active})`, 'Best for this device'],
-            ['high', 'High', 'Ambient occlusion, 4K shadows, 6,000 pebbles. Gaming PCs.'],
-            ['medium', 'Medium', 'Bloom and glare, 2K shadows. Laptops and newer phones.'],
-            ['low', 'Low', 'No post-effects. Older phones and school Chromebooks.'],
+            ['auto', `Auto (now: ${active})`, 'Picks a level for your graphics chip, then adjusts resolution live to stay smooth'],
+            ['ultra', 'Ultra', 'Ambient occlusion, 4K shadows, 6,000 pebbles. Gaming PCs only.'],
+            ['high', 'High', 'Glare, sharp 2K shadows, anti-aliasing. Laptops with a graphics card.'],
+            ['medium', 'Medium', 'Glare and soft shadows. Most laptops, Chromebooks and newer phones.'],
+            ['low', 'Low', 'No post-effects, lower resolution. Older phones and computers.'],
           ].map(([id, label, note]) => (
             <button key={id} role="menuitemradio" aria-checked={current === id} className={current === id ? 'on' : ''} onClick={() => pick(id)}>
               <span>{label}</span>

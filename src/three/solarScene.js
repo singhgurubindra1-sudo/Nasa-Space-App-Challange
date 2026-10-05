@@ -8,6 +8,7 @@ import { tex } from './assets.js';
 import { starSky } from './realism.js';
 import { createPost } from './post.js';
 import { getQuality } from './quality.js';
+import { createGovernor } from './perf.js';
 
 // Real maps (NASA imagery) where we have them; the rest stay procedural.
 const REAL_MAPS = { mars: 'mars', jupiter: 'jupiter', saturn: 'saturn', neptune: 'neptune', venus: 'venus' };
@@ -453,6 +454,7 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
     }
     controls.update();
     post.render(dt);
+    governor.tick(dt);
 
     // Screen positions for HTML labels.
     if (labelCb) {
@@ -475,6 +477,7 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
       labelCb(labelState, days);
     }
   }
+  const governor = createGovernor({ renderer, post, quality, onResize: resize, target: 50 });
   renderer.setAnimationLoop(frame);
 
   function resize() {

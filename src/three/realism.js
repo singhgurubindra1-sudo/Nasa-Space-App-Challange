@@ -135,7 +135,8 @@ export function buildRocksPBR(worldId, heightAt, look, quality) {
     metalness: 0,
   });
   const rnd = seeded(worldId === 'mars' ? 77 : 88);
-  const protos = [0, 1, 2, 3, 4, 5].map((i) => rockGeometry(100 + i + (worldId === 'mars' ? 0 : 50), 3, worldId === 'mars' ? 0.62 + i * 0.03 : 0.7 + i * 0.03));
+  const detail = quality.rockDetail ?? 2;
+  const protos = [0, 1, 2, 3, 4, 5].map((i) => rockGeometry(100 + i + (worldId === 'mars' ? 0 : 50), detail, worldId === 'mars' ? 0.62 + i * 0.03 : 0.7 + i * 0.03));
   const total = Math.round(look.rocks * quality.rocks);
   const per = Math.ceil(total / protos.length);
   const m = new THREE.Matrix4();
@@ -145,7 +146,10 @@ export function buildRocksPBR(worldId, heightAt, look, quality) {
   const base = new THREE.Color(1, 1, 1);
   const avoid = (x, z, d) => (d < 15 && rnd() < 0.85) || Math.hypot(x + 9, z - 9) < 6.5 || d < 11;
   protos.forEach((geo, pi) => {
-    const mesh = new THREE.InstancedMesh(geo, rockMat, per);
+    // Split each shape into shadow-casting (large) and non-casting (small) instances:
+    // small stones barely show a shadow but cost a full extra draw in the shadow pass.
+    const large = [];
+    const smallOnes = [];
     for (let i = 0; i < per; i++) {
       let x; let z; let d;
       do {
@@ -154,20 +158,28 @@ export function buildRocksPBR(worldId, heightAt, look, quality) {
         x = Math.cos(a) * d;
         z = Math.sin(a) * d;
       } while (avoid(x, z, d));
-      const s = (0.08 + Math.pow(rnd(), 3.2) * (worldId === 'mars' ? 1.6 : 1.25)) * (d > 60 ? 1.6 : 1);
+      const sc = (0.08 + Math.pow(rnd(), 3.2) * (worldId === 'mars' ? 1.6 : 1.25)) * (d > 60 ? 1.6 : 1);
       e.set(rnd() * 0.4, rnd() * Math.PI * 2, rnd() * 0.4);
       q.setFromEuler(e);
       // sink rocks a little into the ground so they look embedded, not placed
-      m.compose(new THREE.Vector3(x, heightAt(x, z) - s * 0.18, z), q, new THREE.Vector3(s * (0.8 + rnd() * 0.6), s, s * (0.8 + rnd() * 0.6)));
-      mesh.setMatrixAt(i, m);
-      if (s > 0.7) big.push({ x, z, r: s * 1.05 });
-      c.copy(base).multiplyScalar(0.72 + rnd() * 0.4);
-      mesh.setColorAt(i, c);
+      const mat4 = new THREE.Matrix4().compose(new THREE.Vector3(x, heightAt(x, z) - sc * 0.18, z), q.clone(), new THREE.Vector3(sc * (0.8 + rnd() * 0.6), sc, sc * (0.8 + rnd() * 0.6)));
+      if (sc > 0.7) big.push({ x, z, r: sc * 1.05 });
+      const tint = 0.72 + rnd() * 0.4;
+      (sc > 0.35 && d < 70 ? large : smallOnes).push([mat4, tint]);
     }
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.userData.proto = pi;
-    group.add(mesh);
+    for (const [list, cast] of [[large, true], [smallOnes, false]]) {
+      if (!list.length) continue;
+      const mesh = new THREE.InstancedMesh(geo, rockMat, list.length);
+      list.forEach(([mat4, tint], i) => {
+        mesh.setMatrixAt(i, mat4);
+        c.copy(base).multiplyScalar(tint);
+        mesh.setColorAt(i, c);
+      });
+      mesh.castShadow = cast;
+      mesh.receiveShadow = true;
+      mesh.userData.proto = pi;
+      group.add(mesh);
+    }
   });
 
   // Pebbles: thousands of small stones near the base (receive shadows only, for speed)

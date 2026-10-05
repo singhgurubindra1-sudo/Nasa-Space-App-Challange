@@ -5,6 +5,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { buildWorld } from './world.js';
 import { createPost } from './post.js';
 import { getQuality } from './quality.js';
+import { createGovernor } from './perf.js';
 
 export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost }) {
   const small = Math.min(window.innerWidth, window.innerHeight) < 700;
@@ -16,6 +17,7 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false; // the Sun doesn't move: refresh shadows every few frames only
   const onLost = (e) => {
     e.preventDefault();
     if (onContextLost) onContextLost();
@@ -44,6 +46,7 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
   let disposed = false;
   let last = performance.now();
   let elapsed = 0;
+  let frameNo = 0;
   const tmpV = new THREE.Vector3();
 
   // Don't spend battery drawing the scene while it's scrolled out of view.
@@ -60,13 +63,17 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
       return;
     }
     const now = performance.now();
+    // The base view is a backdrop: cap its frame rate to save the GPU (and phone batteries)
+    if (now - last < 1000 / quality.baseFps - 2) return;
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     elapsed += dt;
     world.tick(dt, elapsed);
+    if (frameNo++ % quality.shadowEvery === 0) renderer.shadowMap.needsUpdate = true;
 
     controls.update();
     post.render(dt);
+    governor.tick(dt);
 
     if (labelCb) {
       const rect = canvas.getBoundingClientRect();
@@ -97,6 +104,7 @@ export function createBaseScene({ canvas, worldId, reducedMotion, onContextLost 
   ro.observe(canvas);
   resize();
   if (camera.aspect < 0.9) camera.position.set(25, 10, 31);
+  const governor = createGovernor({ renderer, post, quality, onResize: resize, target: Math.min(quality.baseFps, 45) * 0.95 });
   renderer.setAnimationLoop(frame);
 
   return {

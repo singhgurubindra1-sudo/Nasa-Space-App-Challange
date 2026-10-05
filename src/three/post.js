@@ -68,8 +68,7 @@ export function createPost(renderer, scene, camera, quality, { worldId = 'mars',
   else if (worldId === 'moon') look.uniforms.tint.value.set(0.98, 0.99, 1.02);
   else look.uniforms.vignette.value = 0.25;
   composer.addPass(look);
-  const smaa = new SMAAPass();
-  composer.addPass(smaa);
+  if (quality.smaa) composer.addPass(new SMAAPass());
 
   let t = 0;
   return {
@@ -84,6 +83,16 @@ export function createPost(renderer, scene, camera, quality, { worldId = 'mars',
     setSize(w, h) {
       composer.setPixelRatio(renderer.getPixelRatio());
       composer.setSize(w, h);
+      // Bloom is blurry anyway: render it at half resolution (a big saving)
+      if (bloomPass) {
+        const pr = renderer.getPixelRatio();
+        bloomPass.setSize(Math.max(1, Math.round((w * pr) / 2)), Math.max(1, Math.round((h * pr) / 2)));
+      }
+    },
+    // Governor's last resort: switch off the expensive passes
+    reduce() {
+      if (ao) ao.enabled = false;
+      if (bloomPass) bloomPass.enabled = false;
     },
     setCamera(c) {
       camera = c;

@@ -585,7 +585,7 @@ export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true
   // Dust particles (Mars)
   let dust = null;
   if (worldId === 'mars') {
-    const n = 1800;
+    const n = quality.post ? 1000 : 500;
     const pos = new Float32Array(n * 3);
     const rnd = seeded(91);
     for (let i = 0; i < n; i++) pos.set([(rnd() - 0.5) * 120, rnd() * 18, (rnd() - 0.5) * 120], i * 3);

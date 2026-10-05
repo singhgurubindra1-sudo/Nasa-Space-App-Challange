@@ -6,6 +6,7 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { tex } from './assets.js';
 import { createPost } from './post.js';
 import { getQuality } from './quality.js';
+import { createGovernor } from './perf.js';
 import { buildInterior } from './habInterior.js';
 import { buildHeritage, createFootprints } from './heritage.js';
 import { createCrewSim } from './crewSim.js';
@@ -54,6 +55,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false; // refreshed every few frames in the loop
   const onLost = (e) => {
     e.preventDefault();
     if (onContextLost) onContextLost();
@@ -355,6 +357,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   let last = performance.now();
   let elapsed = 0;
   let hudT = 0;
+  let frameNo = 0;
   let aimT = 0;
   let aimRock = false;
 
@@ -365,6 +368,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     last = now;
     elapsed += dt;
     world.tick(dt, elapsed);
+    if (frameNo++ % quality.shadowEvery === 0) renderer.shadowMap.needsUpdate = true;
     crew.update(dt * crewSpeed, elapsed);
     footprints.update(elapsed);
     if (space === 'inside') world.sun.intensity = 0; // sealed module: only the habitat lights
@@ -574,6 +578,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     }
 
     post.render(dt);
+    governor.tick(dt);
 
     // Aim check (is a rock in the crosshair?)
     aimT -= dt;
@@ -652,6 +657,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
   resize();
+  const governor = createGovernor({ renderer, post, quality, onResize: resize, target: 50 });
   renderer.setAnimationLoop(frame);
   cb.onTasks && cb.onTasks({ ...tasks });
 
