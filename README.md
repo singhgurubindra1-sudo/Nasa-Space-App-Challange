@@ -14,9 +14,30 @@ A turn-based outpost game where students (ages 10–15) keep a crew of 4 alive o
 
 Survive 30 Sols puts students in charge of a lunar or Martian outpost. Each sol they split one power budget between life support, food, shielding and storage, then face events drawn from real NASA missions, like the 2018 Mars dust storm. A debrief shows the decision that saved or ended their mission, making engineering trade-offs something kids feel, not just read.
 
-## Mission Control: 3D solar system
+## Dashboard: Live Space Explorer (start page)
 
-The start page is a 3D "Mission Control" (three.js). All eight planets and the Moon orbit the Sun with their **real orbital periods**, starting from where they **really are today** (JPL mean longitudes, circular-orbit approximation). Tap the Moon or Mars, either in 3D or with the buttons below it, and the camera flies to it. The target panel then shows live numbers for that world: today's distance from Earth, the radio-message delay, travel time, gravity, day length, temperature and surface radiation.
+The app now opens on a **Live Space Explorer**. You fly from the whole galaxy down to the satellites over your head, and tap anything to get an information card. The **🚀 Next: Mission Dashboard** button (or "Run the 30-sol simulation here" on Jezero or the lunar south pole) leads to the mission page where you pick the Moon or Mars.
+
+| View | What you see | How real is it? |
+|---|---|---|
+| 🌌 Galaxy | Milky Way spiral, bar and bulge, Sun's 26,000-light-year orbit, Sagittarius A*, Magellanic Clouds | Real proportions; star field is procedural |
+| ☀️ Solar System | Planets, Moon, JWST (L2), SOHO (L1), Parker Solar Probe, Voyager 1 & 2, New Horizons, Juno, famous asteroids (Bennu, Apophis, Didymos, Ryugu, Eros, Phaethon, Itokawa) | Planets computed now from JPL Keplerian elements; asteroid orbits **live from NASA NeoWs**; probes from published distance, speed and direction |
+| 🌍 Earth orbit | ISS, Tiangong, Hubble, TESS, Landsat 8/9, Terra, Aqua, NOAA-20, ICESat-2, GPM, SWOT, Sentinel-6, PACE, GOES-18/19, plus an optional layer of the ~150 brightest satellites | **Live**: CelesTrak orbital elements propagated with SGP4 every frame. Earth's rotation, the day/night line and the Moon are where they are right now |
+| ☄️ Asteroids | This week's close approaches on a log-distance radar, with flyby paths, plus the predicted 2029 Apophis flyby | **Live from NASA NeoWs**: time, miss distance, speed, size, hazard flag. NeoWs gives no direction, so path direction is illustrative and the panel says so |
+| 🌕 Moon | Lunar south pole (your base at Shackleton, Chandrayaan-3, IM-1, IM-2), the empty north pole (Peary crater), the far side (Chang'e-4/6), Apollo 11 & 17, Blue Ghost, orbiters (LRO, Chandrayaan-2, Danuri, CAPSTONE, ARTEMIS P1) | Lit by today's real Moon phase; day/night per site computed now; orbiters use their published orbits |
+| 🔴 Mars | Jezero (Perseverance, Ingenuity), the north polar ice cap, Phoenix, Curiosity, Zhurong, InSight, Viking 1, orbiters (MRO, Odyssey, MAVEN, Mars Express, TGO, Hope, Tianwen-1), Phobos and Deimos | Real Mars clock (NASA Mars24): local time, Perseverance's sol number and the Sun's position are computed for this second |
+
+- **Badges never overstate**: every card says LIVE DATA, LAST KNOWN (cached), COMPUTED NOW, PREDICTED, or REAL ORBIT · POSITION ESTIMATED. Nobody publishes live positions for Moon and Mars orbiters, so we use their real orbit size, shape, tilt and lap time, and mark the position along the orbit as an estimate.
+- **Time controls**: ● LIVE, or speed up to 1 min/s, 10 min/s, 1 h/s or 1 day/s. "Watch the 2029 flyby" jumps to Apophis.
+- **Offline-safe**: if CelesTrak or NASA can't be reached, the page says so and falls back to estimates (geostationary weather satellites stay exact). A check on each satellite's catalog name means a wrong NORAD number can never show the wrong object.
+- **Polite caching**: elements are cached in `localStorage` (satellites 4 h, asteroid feed 3 h, asteroid orbits 24 h). The NASA API uses `DEMO_KEY` (30 requests/hour). For a busy classroom, get a free key at [api.nasa.gov](https://api.nasa.gov/) and build with `VITE_NASA_API_KEY=yourkey npm run build`.
+- Tests check the math against known values: Earth at J2000, the January 2025 Mars opposition, the Mars24 worked example, full and new Moon dates, Phobos's 7.65-hour orbit, Voyager 1 reaching about one light-day in November 2026, and SGP4 heights.
+
+Data: [`src/data/spacecraft.json`](src/data/spacecraft.json), [`src/data/asteroids.json`](src/data/asteroids.json), [`src/data/elements.json`](src/data/elements.json). Live sources: [CelesTrak](https://celestrak.org/NORAD/elements/), [NASA NeoWs](https://api.nasa.gov/), [JPL approximate planet positions](https://ssd.jpl.nasa.gov/planets/approx_pos.html), [NASA GISS Mars24](https://www.giss.nasa.gov/tools/mars24/help/algorithm.html).
+
+## Mission Dashboard: 3D solar system
+
+The second page is the "Mission Dashboard" (three.js). All eight planets and the Moon orbit the Sun with their **real orbital periods**, starting from where they **really are today** (JPL mean longitudes, circular-orbit approximation). Tap the Moon or Mars, either in 3D or with the buttons below it, and the camera flies to it. The target panel then shows live numbers for that world: today's distance from Earth, the radio-message delay, travel time, gravity, day length, temperature and surface radiation.
 
 - Drag to rotate, pinch or scroll to zoom, and set the sim speed (pause, 1, 8 or 40 days per second)
 - Sizes and distances are squeezed so the outer planets fit on a phone, and the page says so
@@ -234,7 +255,11 @@ src/engine/turningPoint.js counterfactual replays to find the decision that matt
 src/engine/nova.js         Nova's briefing lines (pre-written, no live AI)
 src/engine/strategies.js   preset plans for the debrief + simulated players
 scripts/simulate.mjs       1,000-game balance script
-src/three/solarScene.js    3D Mission Control scene (three.js)
+src/three/solarScene.js    3D Mission Dashboard scene (three.js)
+src/three/explorerScene.js Live Space Explorer: galaxy, solar system, Earth/Moon/Mars orbit, asteroid radar
+src/engine/space.js        real-time astronomy: JPL elements, Moon, Mars24 clock, Kepler orbits
+src/live/live.js           live data: CelesTrak satellites, NASA NeoWs asteroids, caching
+src/lib/satellite.js       SGP4 propagator (satellite.js)
 src/three/world.js         shared surface world: terrain, sky, base hardware, status visuals
 src/three/realism.js       PBR terrain/rocks, skies, real Earth & stars, env lighting, NASA models
 src/three/post.js          post-processing: GTAO, bloom, SMAA, tone mapping, camera look
@@ -249,7 +274,7 @@ src/three/heritage.js      Ingenuity, sample depot, tipped lander, satellites, f
 src/engine/crew.js         crew task rules (one per junior per sol, specialist bonus)
 src/audio/sound.js         Web Audio sound engine (synthesized)
 src/engine/orbits.js       planet positions by date, Earth–target distance, radio delay
-src/screens/               the 6 screens: choose world, briefing, plan, event+report, debrief, learn+teacher
+src/screens/               the 7 screens: live explorer dashboard, choose world, briefing, plan, event+report, debrief, learn+teacher
 ```
 
 ## AI use (disclosure)

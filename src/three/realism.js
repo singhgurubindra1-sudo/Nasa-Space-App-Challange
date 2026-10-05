@@ -250,7 +250,7 @@ export function marsSkyPBR(look, sunDir) {
   return m;
 }
 
-function atmosphereShell(radius, color, power, intensity) {
+export function atmosphereShell(radius, color, power, intensity) {
   return new THREE.Mesh(
     new THREE.SphereGeometry(radius, 48, 32),
     new THREE.ShaderMaterial({

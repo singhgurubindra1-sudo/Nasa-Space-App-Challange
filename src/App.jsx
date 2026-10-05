@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import ChooseWorld from './screens/ChooseWorld.jsx';
+import Dashboard from './screens/Dashboard.jsx';
 import Briefing from './screens/Briefing.jsx';
 import PlanSol from './screens/PlanSol.jsx';
 import EventReport from './screens/EventReport.jsx';
@@ -43,7 +44,7 @@ export default function App() {
   const [voice, setVoice] = useState(!!prefs.voice);
   const [game, setGame] = useState(null);
   const [report, setReport] = useState(null);
-  const [screen, setScreen] = useState('choose');
+  const [screen, setScreen] = useState('dashboard');
   const [returnTo, setReturnTo] = useState('choose');
   const [preview, setPreview] = useState(null); // live slider values from the plan screen
   const [eva, setEva] = useState(false); // first-person EVA mode
@@ -98,7 +99,7 @@ export default function App() {
   return (
     <div className="app">
       <nav className="topbar">
-        <button className="brand" onClick={() => setScreen(game && game.status === 'playing' ? 'briefing' : 'choose')} aria-label="Survive 30 Sols home">
+        <button className="brand" onClick={() => setScreen(game && game.status === 'playing' ? 'briefing' : 'dashboard')} aria-label="Survive 30 Sols home">
           🚀 <span>Survive 30 Sols</span>
         </button>
         <div className="topbar-actions">
@@ -109,7 +110,7 @@ export default function App() {
           {screen !== 'learn' && (
             <button className="icon-btn" onClick={learn} title="Learn and teacher page">📘 <span className="hide-sm">Learn</span></button>
           )}
-          {game && game.status === 'playing' && screen !== 'choose' && screen !== 'learn' && (
+          {game && game.status === 'playing' && screen !== 'choose' && screen !== 'dashboard' && screen !== 'learn' && (
             <button className="icon-btn" onClick={() => setScreen('choose')} title="Quit to menu (progress is saved)">✕</button>
           )}
         </div>
@@ -121,8 +122,24 @@ export default function App() {
             <BaseView key={game.worldId} state={game} report={report} screen={screen} preview={screen === 'plan' ? preview : null} onEva={openEva} />
           </Suspense>
         )}
+        {screen === 'dashboard' && (
+          <Dashboard
+            onNext={() => setScreen('choose')}
+            onMission={(w) => {
+              setWorld(w);
+              setScreen('choose');
+            }}
+            saved={saved}
+            onContinue={() => {
+              setGame(saved);
+              setWorld(saved.worldId);
+              setScreen('briefing');
+            }}
+          />
+        )}
         {screen === 'choose' && (
           <ChooseWorld
+            onExplorer={() => setScreen('dashboard')}
             world={world}
             setWorld={setWorld}
             onStart={() => start()}
@@ -148,7 +165,7 @@ export default function App() {
         {screen === 'debrief' && game && (
           <Debrief state={game} onAgain={() => start(game.worldId)} onOther={() => start(game.worldId === 'moon' ? 'mars' : 'moon')} onLearn={learn} />
         )}
-        {screen === 'learn' && <Learn onBack={() => setScreen(returnTo === 'learn' ? 'choose' : returnTo)} />}
+        {screen === 'learn' && <Learn onBack={() => setScreen(returnTo === 'learn' ? 'dashboard' : returnTo)} />}
       </main>
 
       {eva && game && (

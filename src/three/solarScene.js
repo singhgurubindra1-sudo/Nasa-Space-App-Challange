@@ -157,6 +157,31 @@ function orbitLine(radius, color, opacity) {
   return new THREE.Line(geo, new THREE.LineBasicMaterial({ color, transparent: true, opacity }));
 }
 
+
+// The Sun: animated granulation and limb darkening, bright enough to bloom
+export function sunMesh(radius) {
+  const sunMat = new THREE.ShaderMaterial({
+    uniforms: { time: { value: 0 } },
+    vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vV; void main(){ vP = position; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `
+      uniform float time; varying vec3 vP; varying vec3 vN; varying vec3 vV;
+      float h(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      float n(vec3 p){ vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
+        return mix(mix(mix(h(i), h(i+vec3(1,0,0)), f.x), mix(h(i+vec3(0,1,0)), h(i+vec3(1,1,0)), f.x), f.y),
+                   mix(mix(h(i+vec3(0,0,1)), h(i+vec3(1,0,1)), f.x), mix(h(i+vec3(0,1,1)), h(i+vec3(1,1,1)), f.x), f.y), f.z); }
+      void main(){
+        vec3 p = normalize(vP) * 6.0;
+        float g = n(p + time * 0.15) * 0.5 + n(p * 2.3 - time * 0.2) * 0.3 + n(p * 6.0 + time * 0.3) * 0.2; // granulation
+        float limb = pow(max(dot(vN, vV), 0.0), 0.45); // limb darkening, as seen on the real Sun
+        vec3 col = mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.92, 0.65), g) * (0.55 + 0.75 * limb);
+        gl_FragColor = vec4(col * 3.2, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  return new THREE.Mesh(new THREE.SphereGeometry(radius, 64, 48), sunMat);
+}
+
 // ---------- The scene ----------
 
 export function createSolarScene({ canvas, startDays, onPick, onHover, onContextLost, reducedMotion }) {
@@ -196,26 +221,8 @@ export function createSolarScene({ canvas, startDays, onPick, onHover, onContext
   scene.add(starSky(1600, 1.1));
 
   // Sun
-  const sunMat = new THREE.ShaderMaterial({
-    uniforms: { time: { value: 0 } },
-    vertexShader: 'varying vec3 vP; varying vec3 vN; varying vec3 vV; void main(){ vP = position; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
-    fragmentShader: `
-      uniform float time; varying vec3 vP; varying vec3 vN; varying vec3 vV;
-      float h(vec3 p){ return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-      float n(vec3 p){ vec3 i = floor(p); vec3 f = fract(p); f = f*f*(3.0-2.0*f);
-        return mix(mix(mix(h(i), h(i+vec3(1,0,0)), f.x), mix(h(i+vec3(0,1,0)), h(i+vec3(1,1,0)), f.x), f.y),
-                   mix(mix(h(i+vec3(0,0,1)), h(i+vec3(1,0,1)), f.x), mix(h(i+vec3(0,1,1)), h(i+vec3(1,1,1)), f.x), f.y), f.z); }
-      void main(){
-        vec3 p = normalize(vP) * 6.0;
-        float g = n(p + time * 0.15) * 0.5 + n(p * 2.3 - time * 0.2) * 0.3 + n(p * 6.0 + time * 0.3) * 0.2; // granulation
-        float limb = pow(max(dot(vN, vV), 0.0), 0.45); // limb darkening, as seen on the real Sun
-        vec3 col = mix(vec3(1.0, 0.45, 0.08), vec3(1.0, 0.92, 0.65), g) * (0.55 + 0.75 * limb);
-        gl_FragColor = vec4(col * 3.2, 1.0);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }`,
-  });
-  const sun = new THREE.Mesh(new THREE.SphereGeometry(2.6, 64, 48), sunMat);
+  const sun = sunMesh(2.6);
+  const sunMat = sun.material;
   scene.add(sun);
   const sunGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(255,236,170,1)', 'rgba(255,160,40,.45)'), blending: THREE.AdditiveBlending, depthWrite: false }));
   sunGlow.scale.set(11, 11, 1);

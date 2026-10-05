@@ -43,6 +43,7 @@ export function createPost(renderer, scene, camera, quality, { worldId = 'mars',
       render: () => renderer.render(scene, camera),
       setSize: () => {},
       setCamera: (c) => { camera = c; },
+      setScene: (sc) => { scene = sc; },
       dispose: () => {},
       look: null,
     };
@@ -93,6 +94,10 @@ export function createPost(renderer, scene, camera, quality, { worldId = 'mars',
     reduce() {
       if (ao) ao.enabled = false;
       if (bloomPass) bloomPass.enabled = false;
+    },
+    setScene(sc) {
+      renderPass.scene = sc;
+      if (ao) ao.scene = sc;
     },
     setCamera(c) {
       camera = c;

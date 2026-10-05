@@ -8,7 +8,7 @@ const SolarSystem = lazy(() => import('../components/SolarSystem.jsx'));
 
 const fmtKm = (km) => (km >= 1e6 ? `${(km / 1e6).toFixed(1)} million km` : `${Math.round(km).toLocaleString()} km`);
 
-export default function ChooseWorld({ world, setWorld, onStart, onContinue, saved, onLearn }) {
+export default function ChooseWorld({ world, setWorld, onStart, onContinue, saved, onLearn, onExplorer }) {
   const [focused, setFocused] = useState(null);
   const [simDays, setSimDays] = useState(() => daysSinceJ2000(Date.now()));
   const todayDays = daysSinceJ2000(Date.now());
@@ -26,7 +26,7 @@ export default function ChooseWorld({ world, setWorld, onStart, onContinue, save
     <div className="screen">
       <section className="mission-control">
         <div className="mc-title">
-          <p className="kicker">NASA Space Apps 2026 · Mission Control</p>
+          <p className="kicker">Mission Dashboard · Step 2</p>
           <h1>Survive 30 Sols</h1>
           <p className="lead">Choose your destination. Every sol you get one power budget and one big decision.</p>
         </div>
@@ -38,6 +38,8 @@ export default function ChooseWorld({ world, setWorld, onStart, onContinue, save
           Sizes and distances are squeezed so everything fits on screen.
         </p>
       </section>
+
+      {onExplorer && <button className="btn btn-ghost wide" onClick={onExplorer}>← Back to the Live Space Explorer</button>}
 
       {saved && (
         <button className="btn btn-secondary wide" onClick={onContinue}>

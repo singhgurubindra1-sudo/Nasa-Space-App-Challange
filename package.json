@@ -17,6 +17,7 @@
     "chart.js": "^4.5.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "satellite.js": "^7.1.0",
     "three": "^0.186.1"
   },
   "devDependencies": {

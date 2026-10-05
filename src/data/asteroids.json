@@ -1,0 +1,20 @@
+{
+  "_readme": "Famous asteroids for the Explorer. 'neo' is the NASA NeoWs id (orbit and close approaches are fetched live). 'approx' elements (a au, e, i/node/peri degrees) are rounded values from JPL's Small-Body Database, used only to draw the orbit when the live data can't be reached.",
+  "famous": [
+    { "id": "bennu", "neo": "2101955", "name": "101955 Bennu", "diameterM": 490, "active": true, "approx": { "a": 1.126, "e": 0.204, "i": 6.03, "node": 2.06, "peri": 66.2 }, "facts": ["NASA's OSIRIS-REx brought 121.6 g of Bennu back to Earth in September 2023.", "An 'active asteroid': OSIRIS-REx saw it flinging small pebbles into space."], "url": "https://science.nasa.gov/solar-system/asteroids/101955-bennu/" },
+    { "id": "apophis", "neo": "2099942", "name": "99942 Apophis", "diameterM": 340, "approx": { "a": 0.922, "e": 0.191, "i": 3.34, "node": 204.0, "peri": 126.6 }, "facts": ["On 13 April 2029 it will pass just 32,000 km above Earth — closer than geostationary satellites — and will be visible without a telescope.", "NASA's OSIRIS-APEX will study it after the flyby. No chance of hitting Earth for at least 100 years."], "url": "https://science.nasa.gov/solar-system/asteroids/apophis/" },
+    { "id": "didymos", "neo": "2065803", "name": "65803 Didymos & Dimorphos", "diameterM": 780, "approx": { "a": 1.643, "e": 0.383, "i": 3.41, "node": 73.2, "peri": 319.6 }, "facts": ["NASA's DART spacecraft crashed into its moonlet Dimorphos in 2022 and shortened its orbit by 33 minutes — the first test of planetary defence.", "ESA's Hera mission is on its way to inspect the crater."], "url": "https://science.nasa.gov/mission/dart/" },
+    { "id": "ryugu", "neo": "2162173", "name": "162173 Ryugu", "diameterM": 900, "approx": { "a": 1.191, "e": 0.191, "i": 5.87, "node": 251.3, "peri": 211.6 }, "facts": ["Japan's Hayabusa2 returned 5.4 g of samples in 2020 — they contain amino acids."], "url": "https://www.hayabusa2.jaxa.jp/en/" },
+    { "id": "eros", "neo": "2000433", "name": "433 Eros", "diameterM": 16800, "approx": { "a": 1.458, "e": 0.223, "i": 10.83, "node": 304.3, "peri": 178.9 }, "facts": ["NASA's NEAR Shoemaker landed on it in 2001 — the first landing on an asteroid."], "url": "https://science.nasa.gov/solar-system/asteroids/433-eros/" },
+    { "id": "phaethon", "neo": "2003200", "name": "3200 Phaethon", "diameterM": 5100, "active": true, "approx": { "a": 1.271, "e": 0.890, "i": 22.3, "node": 265.2, "peri": 322.2 }, "facts": ["An 'active asteroid': it sheds dust when it swoops close to the Sun.", "That dust makes the Geminid meteor shower every December."], "url": "https://science.nasa.gov/solar-system/asteroids/3200-phaethon/" },
+    { "id": "itokawa", "neo": "2025143", "name": "25143 Itokawa", "diameterM": 330, "approx": { "a": 1.324, "e": 0.280, "i": 1.62, "node": 69.1, "peri": 162.8 }, "facts": ["Hayabusa brought back the first ever asteroid dust in 2010."], "url": "https://www.isas.jaxa.jp/en/missions/spacecraft/past/hayabusa.html" }
+  ],
+  "scheduled": [
+    { "id": "apophis2029", "name": "99942 Apophis (2029 flyby)", "dateUtc": "2029-04-13T21:46:00Z", "missKm": 38000, "speedKms": 7.4, "diameterM": 340, "hazardous": true, "note": "Predicted, not this week: closest approach about 38,000 km from Earth's centre (about 32,000 km above the surface)." }
+  ],
+  "sources": [
+    { "label": "NASA NeoWs (Near Earth Object Web Service)", "url": "https://api.nasa.gov/" },
+    { "label": "NASA CNEOS: close approaches", "url": "https://cneos.jpl.nasa.gov/ca/" },
+    { "label": "JPL Small-Body Database", "url": "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html" }
+  ]
+}
