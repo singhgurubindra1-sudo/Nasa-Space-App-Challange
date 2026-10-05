@@ -1,0 +1,70 @@
+{
+  "_readme": "The crew: you are the Senior Astronaut (Commander). Each Junior Astronaut has a specialty: on tasks in their specialty they work faster and get a bigger result. Each Junior can finish one task per sol. 'inside' tasks happen in the habitat.",
+  "juniors": [
+    { "id": "asha", "name": "Asha", "role": "Botanist", "emoji": "🌱", "color": "#22c55e", "skin": "#8d5a3b", "hair": "#1b1310", "specialty": ["greenhouse", "rest"] },
+    { "id": "leo", "name": "Leo", "role": "Engineer", "emoji": "🔧", "color": "#f97316", "skin": "#5c3b26", "hair": "#120d0a", "specialty": ["repair", "solar", "shield", "reactor"] },
+    { "id": "mei", "name": "Mei", "role": "Geologist", "emoji": "🪨", "color": "#3b82f6", "skin": "#e8c39e", "hair": "#2a1d14", "specialty": ["samples", "lab"] }
+  ],
+  "tasks": [
+    {
+      "id": "greenhouse", "label": "Tend the greenhouse", "emoji": "🌱", "place": "Greenhouse", "inside": false, "pose": "kneel", "prop": "can", "seconds": 14,
+      "effect": { "maturity": 0.06 },
+      "start": "Copy that, Commander. Heading to the greenhouse.",
+      "done": "Plants watered, roots checked, LEDs cleaned. They look healthy!",
+      "fact": "On the ISS, astronauts water plants by hand with a syringe because water doesn't flow downward in microgravity. On the Moon and Mars, gravity helps a little."
+    },
+    {
+      "id": "shield", "label": "Pile regolith on the hab", "emoji": "🛡", "place": "Habitat roof", "inside": false, "pose": "shovel", "prop": "shovel", "seconds": 16,
+      "effect": { "shield": 3 },
+      "start": "On it. Grabbing the shovel to add regolith to the shield.",
+      "done": "Another layer of regolith is on the roof. That cuts our radiation dose.",
+      "fact": "About 1–2 metres of regolith over a habitat blocks most solar particles and a good share of cosmic rays. Real bases will use robots, but here we dig by hand."
+    },
+    {
+      "id": "solar", "label": "Clean the solar panels", "emoji": "☀", "place": "Solar array", "inside": false, "pose": "work", "prop": "brush", "seconds": 14,
+      "effect": { "battery": 4 },
+      "start": "Copy. Heading out to brush dust off the panels.",
+      "done": "Panels are clean. We're making a little more power now.",
+      "fact": "Dust on solar panels was a real problem for Mars rovers. Spirit and Opportunity were sometimes saved by 'cleaning events' when gusts of wind blew their panels clean."
+    },
+    {
+      "id": "repair", "label": "Repair life support", "emoji": "🔧", "place": "Life-support rack", "inside": true, "pose": "type", "prop": "wrench", "seconds": 16,
+      "effect": { "repair": true },
+      "start": "Copy that. Grabbing the toolkit and heading to the life-support rack.",
+      "done": "Life support checked and fixed.",
+      "fact": "ISS crews spend hours every week on maintenance. The oxygen generator and water recycler are checked and repaired regularly."
+    },
+    {
+      "id": "samples", "label": "Collect rock samples", "emoji": "🪨", "place": "Rock field", "inside": false, "pose": "kneel", "prop": "bag", "seconds": 14,
+      "effect": { "science": 4 },
+      "start": "Heading to the rock field with sample bags.",
+      "done": "Samples bagged and labelled for the lab.",
+      "fact": "Astronauts collected 382 kg of Moon rock during the Apollo missions. Scientists are still studying them today."
+    },
+    {
+      "id": "lab", "label": "Analyse samples in the lab", "emoji": "🔬", "place": "Lab bench", "inside": true, "pose": "type", "prop": "tablet", "seconds": 14,
+      "effect": { "science": 3 },
+      "start": "Going inside to run the samples through the lab instruments.",
+      "done": "Analysis complete. Data sent to Earth.",
+      "fact": "Perseverance carries instruments like PIXL and SHERLOC that can map the chemistry of a rock in spots smaller than a grain of salt."
+    },
+    {
+      "id": "rest", "label": "Rest in the sleep pod", "emoji": "💤", "place": "Sleep pods", "inside": true, "pose": "rest", "prop": null, "seconds": 16,
+      "effect": { "morale": 5, "health": 2 },
+      "start": "Thanks, Commander. Heading inside for a rest.",
+      "done": "Rested and ready for duty!",
+      "fact": "Sleep is hard in space: astronauts on the ISS sleep in sleeping bags strapped to the wall and use eye masks because the Sun rises 16 times a day."
+    },
+    {
+      "id": "reactor", "label": "Inspect the reactor", "emoji": "⚛", "place": "Fission reactor", "inside": false, "pose": "work", "prop": "tablet", "seconds": 14, "world": "moon",
+      "effect": { "battery": 3, "morale": 1 },
+      "start": "Heading out to the reactor. I'll stay behind the berm.",
+      "done": "Reactor checked. Output stable.",
+      "fact": "The reactor sits far from the habitat behind a regolith berm. Distance and shielding are the two best ways to stay safe from radiation."
+    }
+  ],
+  "commander": {
+    "meal": { "morale": 3, "text": "The crew shares a hot meal in the galley. Eating together keeps morale up on long missions." },
+    "samplePoints": 2
+  }
+}

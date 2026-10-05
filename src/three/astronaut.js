@@ -87,7 +87,7 @@ function limb(upperLen, lowerLen, radius, m, stripes, endFn) {
   const end = endFn();
   end.position.y = -lowerLen - radius * 0.7;
   joint.add(end);
-  return { top, joint };
+  return { top, joint, end };
 }
 
 function glove(m) {
@@ -120,8 +120,9 @@ function boot(m) {
   return g;
 }
 
-export function createAstronaut({ commander = false } = {}) {
+export function createAstronaut({ commander = false, bandColor = null, skin = '#c99a76', hair = '#2a1d14' } = {}) {
   const m = materials();
+  const band = bandColor ? new THREE.MeshStandardMaterial({ color: bandColor, roughness: 0.6, emissive: bandColor, emissiveIntensity: 0.15 }) : null;
   const root = new THREE.Group();
   const hips = new THREE.Group();
   hips.position.y = 1.0;
@@ -184,23 +185,50 @@ export function createAstronaut({ commander = false } = {}) {
   head.position.y = 0.62;
   torso.add(head);
   head.add(ring(0.17, m.ring, 0.04));
+  const helmetG = new THREE.Group();
+  head.add(helmetG);
+  // Bare head for inside the habitat (helmet off)
+  const bare = new THREE.Group();
+  bare.visible = false;
+  head.add(bare);
+  {
+    const skinM = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.75 });
+    const face = new THREE.Mesh(new THREE.SphereGeometry(0.115, 20, 14), skinM);
+    face.scale.set(1, 1.15, 1.05);
+    face.position.y = 0.16;
+    bare.add(face);
+    const neck = cap(0.05, 0.05, skinM);
+    neck.position.y = 0.04;
+    bare.add(neck);
+    const hairM = new THREE.MeshStandardMaterial({ color: hair, roughness: 0.9 });
+    const hairCap = new THREE.Mesh(new THREE.SphereGeometry(0.122, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.55), hairM);
+    hairCap.position.set(0, 0.19, -0.012);
+    hairCap.rotation.x = -0.25;
+    bare.add(hairCap);
+    const eyeM = new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.3 });
+    for (const sx of [-1, 1]) {
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), eyeM);
+      eye.position.set(sx * 0.04, 0.18, 0.112);
+      bare.add(eye);
+    }
+  }
   const shell = new THREE.Mesh(new THREE.SphereGeometry(0.23, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.62), m.hard);
   shell.position.y = 0.17;
   shell.rotation.x = -0.35;
-  head.add(shell);
+  helmetG.add(shell);
   const visor = new THREE.Mesh(new THREE.SphereGeometry(0.215, 28, 18, -Math.PI * 0.42, Math.PI * 0.84, Math.PI * 0.18, Math.PI * 0.52), m.visor);
   visor.position.set(0, 0.17, 0.01);
-  head.add(visor);
+  helmetG.add(visor);
   const bubble = new THREE.Mesh(new THREE.SphereGeometry(0.235, 28, 18), m.bubble);
   bubble.position.y = 0.17;
-  head.add(bubble);
+  helmetG.add(bubble);
   for (const sx of [-1, 1]) {
     const housing = new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.05, 0.08, 2, 0.015), m.hard);
     housing.position.set(sx * 0.2, 0.3, 0.06);
-    head.add(housing);
+    helmetG.add(housing);
     const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.018, 12), m.lamp);
     lamp.position.set(sx * 0.2, 0.3, 0.101);
-    head.add(lamp);
+    helmetG.add(lamp);
   }
 
   // Arms
@@ -230,8 +258,163 @@ export function createAstronaut({ commander = false } = {}) {
       o.receiveShadow = true;
     }
   });
-  root.userData.rig = { hips, torso, head, armL, armR, legL, legR };
+  // Crew colour bands on the upper arms and a chest stripe, so you can tell juniors apart
+  if (band) {
+    for (const arm of [armL, armR]) {
+      const b = ring(0.083, band, 0.03);
+      b.position.y = -0.12;
+      arm.top.add(b);
+    }
+    const chest = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.02), band);
+    chest.position.set(0, 0.44, 0.185);
+    torso.add(chest);
+    const packStripe = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.02), band);
+    packStripe.position.set(0, 0.5, -0.425);
+    torso.add(packStripe);
+  }
+
+  root.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+    }
+  });
+  root.userData.rig = { hips, torso, head, armL, armR, legL, legR, helmetG, bare, handR: armR.end, prop: null };
   return root;
+}
+
+export function setHelmet(a, on) {
+  const r = a.userData.rig;
+  r.helmetG.visible = on;
+  r.bare.visible = !on;
+}
+
+// Hand-held tools for crew tasks
+const PROP_BUILDERS = {
+  shovel: () => {
+    const g = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.9, 8), new THREE.MeshStandardMaterial({ color: '#8b9097', metalness: 0.7, roughness: 0.4 }));
+    shaft.position.y = -0.35;
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.25, 0.02), new THREE.MeshStandardMaterial({ color: '#c0c4c9', metalness: 0.8, roughness: 0.3 }));
+    blade.position.y = -0.85;
+    g.add(shaft, blade);
+    return g;
+  },
+  brush: () => {
+    const g = new THREE.Group();
+    const h = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5, 8), new THREE.MeshStandardMaterial({ color: '#334155' }));
+    h.position.y = -0.2;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: '#facc15', roughness: 0.9 }));
+    head.position.y = -0.45;
+    g.add(h, head);
+    return g;
+  },
+  wrench: () => {
+    const g = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.26, 0.02), new THREE.MeshStandardMaterial({ color: '#9ca3af', metalness: 0.9, roughness: 0.3 }));
+    g.position.y = -0.15;
+    return g;
+  },
+  bag: () => {
+    const g = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.06), new THREE.MeshStandardMaterial({ color: '#e5e7eb', roughness: 0.9, transparent: true, opacity: 0.85 }));
+    g.position.y = -0.18;
+    return g;
+  },
+  tablet: () => {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.015), new THREE.MeshStandardMaterial({ color: '#1f2937' }));
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.12), new THREE.MeshStandardMaterial({ color: '#000', emissive: '#38bdf8', emissiveIntensity: 1 }));
+    scr.position.z = 0.009;
+    g.add(body, scr);
+    g.position.set(0, -0.15, 0.06);
+    g.rotation.x = -0.6;
+    return g;
+  },
+  can: () => {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.16, 12), new THREE.MeshStandardMaterial({ color: '#16a34a', roughness: 0.5 }));
+    body.position.y = -0.2;
+    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.015, 0.16, 6), new THREE.MeshStandardMaterial({ color: '#15803d' }));
+    spout.position.set(0, -0.17, 0.1);
+    spout.rotation.x = 1.1;
+    g.add(body, spout);
+    return g;
+  },
+};
+
+export function setProp(a, kind) {
+  const r = a.userData.rig;
+  if (r.prop) {
+    r.handR.remove(r.prop);
+    r.prop = null;
+  }
+  if (kind && PROP_BUILDERS[kind]) {
+    r.prop = PROP_BUILDERS[kind]();
+    r.handR.add(r.prop);
+  }
+}
+
+// Working poses: kneel (greenhouse, samples), shovel, work (brushing panels), type (console), rest (lying down)
+export function poseAstronaut(a, t, pose) {
+  const r = a.userData.rig;
+  const reset = () => {
+    for (const limbPart of [r.legL, r.legR, r.armL, r.armR]) {
+      limbPart.top.rotation.x = 0;
+      limbPart.joint.rotation.x = 0;
+    }
+    r.armL.top.rotation.z = 0.12;
+    r.armR.top.rotation.z = -0.12;
+    r.torso.rotation.set(0, 0, 0);
+    r.head.rotation.set(0, 0, 0);
+    r.hips.position.y = 1.0;
+  };
+  reset();
+  const w = Math.sin(t * 3);
+  if (pose === 'kneel') {
+    r.hips.position.y = 0.56;
+    r.legL.top.rotation.x = -1.35;
+    r.legL.joint.rotation.x = 1.4;
+    r.legR.top.rotation.x = 0.15;
+    r.legR.joint.rotation.x = 1.55;
+    r.torso.rotation.x = 0.35;
+    r.armR.top.rotation.x = -0.9 + w * 0.25;
+    r.armR.joint.rotation.x = -0.5;
+    r.armL.top.rotation.x = -0.7 - w * 0.15;
+    r.armL.joint.rotation.x = -0.6;
+    r.head.rotation.x = 0.35;
+  } else if (pose === 'shovel') {
+    const d = Math.sin(t * 2.2);
+    r.hips.position.y = 0.94;
+    r.legL.top.rotation.x = -0.3;
+    r.legL.joint.rotation.x = 0.4;
+    r.legR.top.rotation.x = 0.1;
+    r.legR.joint.rotation.x = 0.3;
+    r.torso.rotation.x = 0.35 + d * 0.25;
+    r.armR.top.rotation.x = -0.9 + d * 0.45;
+    r.armL.top.rotation.x = -1.1 + d * 0.45;
+    r.armR.joint.rotation.x = -0.4;
+    r.armL.joint.rotation.x = -0.7;
+  } else if (pose === 'work') {
+    const b = Math.sin(t * 4);
+    r.torso.rotation.x = 0.15;
+    r.armR.top.rotation.x = -1.25 + b * 0.15;
+    r.armR.top.rotation.z = -0.15 + b * 0.35;
+    r.armR.joint.rotation.x = -0.3;
+    r.armL.top.rotation.x = -0.5;
+    r.armL.joint.rotation.x = -0.9;
+    r.head.rotation.x = 0.2;
+  } else if (pose === 'type') {
+    const f = Math.sin(t * 9) * 0.05;
+    r.armR.top.rotation.x = -0.75 + f;
+    r.armL.top.rotation.x = -0.75 - f;
+    r.armR.joint.rotation.x = -0.75;
+    r.armL.joint.rotation.x = -0.75;
+    r.head.rotation.x = 0.25;
+  } else if (pose === 'rest') {
+    const b = Math.sin(t * 1.2) * 0.02;
+    r.armL.top.rotation.x = 0.1;
+    r.armR.top.rotation.x = 0.1 + b;
+    r.head.rotation.y = 0.3;
+  }
 }
 
 // Walk cycle: speed 0 = idle (breathing), 1 = walking, 2 = loping.

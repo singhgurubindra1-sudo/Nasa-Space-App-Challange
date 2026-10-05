@@ -2,6 +2,10 @@
 // console, and drive the pressurized rover. Real surface gravity drives every jump and bounce.
 import * as THREE from 'three';
 import { buildWorld } from './world.js';
+import { buildInterior } from './habInterior.js';
+import { buildHeritage, createFootprints } from './heritage.js';
+import { createCrewSim } from './crewSim.js';
+import { targetDistance, daysSinceJ2000, formatDelay } from '../engine/orbits.js';
 import { sound } from '../audio/sound.js';
 
 const ROCK_FACTS = {
@@ -56,9 +60,13 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   camera.rotation.order = 'YXZ';
   scene.add(camera);
 
-  const world = buildWorld(scene, worldId, { renderer, small });
+  const world = buildWorld(scene, worldId, { renderer, small, ambientCrew: false });
   const { heightAt, gravity, colliders, ghWall, interactables } = world;
   world.setAutoRover(false);
+  const interior = buildInterior(scene, worldId);
+  const heritage = buildHeritage(scene, worldId, heightAt);
+  const footprints = createFootprints(scene, worldId);
+  const outsideInteractables = [...interactables, ...heritage.sites];
   // Shadows follow the player so the area around them stays sharp.
   const sunOffset = world.sun.position.clone();
 
@@ -135,6 +143,12 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   const player = { x: 9, z: 2.5, y: heightAt(9, 2.5), vy: 0, yaw: Math.PI * 0.62, pitch: -0.05, onGround: true, vel: new THREE.Vector2() };
   const rv = { x: 12, z: 10, y: heightAt(12, 10), vy: 0, heading: Math.PI * 0.75, speed: 0, pitch: 0, roll: 0, battery: 100, lastGround: heightAt(12, 10) };
   let mode = 'walk';
+  let space = 'outside'; // or 'inside' the habitat
+  let watching = null; // id of a junior astronaut the camera is following
+  let crewSpeed = 1; // fast-forward for crew work
+  let toldFootprints = false;
+  let scannedCount = 0;
+  let analyzedCount = 0;
   let driveCam = 'cab';
   let insideGH = false;
   let suitO2 = 100;
@@ -147,7 +161,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   const touch = { x: 0, y: 0 };
   let sprint = false;
   let lookOffset = { yaw: 0, pitch: 0 }; // free-look inside the rover cab
-  const tasks = { scan: 0, solar: false, greenhouse: false, drive: false, airlock: false };
+  const tasks = { scan: 0, solar: false, greenhouse: false, drive: false, crew: false, habitat: false, heritage: false, airlock: false };
   const scanned = new Set();
   let gameInfo = { battery: 30, capacity: 60 };
   let beamT = 0;
@@ -215,6 +229,10 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   function collide(px, pz, radius) {
     let x = px;
     let z = pz;
+    if (space === 'inside') {
+      const b = interior.bounds;
+      return [Math.max(b.minX, Math.min(b.maxX, x)), Math.max(b.minZ, Math.min(b.maxZ, z))];
+    }
     for (const c of colliders) {
       let cx = c.x;
       const cz = c.z;
@@ -251,6 +269,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     return [x, z];
   }
   function groundAt(x, z) {
+    if (space === 'inside') return interior.floorY;
     const inGH = Math.hypot(x - ghWall.x, z - ghWall.z) < ghWall.r;
     return heightAt(x, z) + (inGH ? 0.18 : 0);
   }
@@ -261,7 +280,9 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
   function nearestInteractable() {
     if (mode === 'drive') return { id: 'exitRover', label: 'Climb out of the rover' };
     let best = null;
-    const cand = [...interactables, { id: 'rover', label: 'Board the rover', x: rv.x, z: rv.z, r: 3.6 }];
+    const cand = space === 'inside'
+      ? interior.stations
+      : [...outsideInteractables.map((it) => (it.id === 'airlock' ? { ...it, label: 'Enter the habitat (recharges your suit)' } : it)), { id: 'rover', label: 'Board the rover', x: rv.x, z: rv.z, r: 3.6 }];
     for (const it of cand) {
       const d = Math.hypot(player.x - it.x, player.z - it.z);
       if (d < it.r && (!best || d < best.d)) best = { ...it, d };
@@ -282,6 +303,46 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     cb.onTasks && cb.onTasks({ ...tasks });
   }
 
+  // ---------- Junior astronauts ----------
+  const crew = createCrewSim({
+    scene, worldId, heightAt, gravity, interior, footprints,
+    onEvent(kind, m, task) {
+      if (kind === 'start') {
+        sound.radio();
+        cb.onToast && cb.onToast({ title: `📻 ${m.name} (${m.role})`, text: task.start });
+      } else if (kind === 'done') {
+        sound.success();
+        const text = cb.onCrewDone ? cb.onCrewDone(m.id, task.id) : task.done;
+        cb.onToast && cb.onToast({ title: `✅ ${m.name} finished: ${task.label}`, text: `${text} 💡 ${task.fact}`, kind: 'crew' });
+      }
+    },
+  });
+
+  function goInside() {
+    space = 'inside';
+    player.x = interior.door.x + 0.6;
+    player.z = interior.door.z;
+    player.y = interior.floorY;
+    player.vy = 0;
+    player.yaw = -Math.PI / 2; // face down the module (east)
+    player.vel.set(0, 0);
+    suitO2 = 100;
+    taskDone('habitat');
+    const others = tasks.scan > 0 || tasks.solar || tasks.greenhouse || tasks.drive;
+    if (others) taskDone('airlock');
+    sound.thud();
+    info('Airlock cycled: suit recharged, helmet off. Walk down the module to the stations: life support, comms, galley, medical, lab, exercise bike, sleep pods and the command console.', 'Inside the habitat');
+  }
+  function goOutside() {
+    space = 'outside';
+    player.x = 7.8;
+    player.z = 0.8;
+    player.y = heightAt(7.8, 0.8);
+    player.yaw = -Math.PI / 2;
+    player.vel.set(0, 0);
+    sound.thud();
+  }
+
   // ---------- Frame ----------
   let last = performance.now();
   let elapsed = 0;
@@ -296,12 +357,15 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
     last = now;
     elapsed += dt;
     world.tick(dt, elapsed);
+    crew.update(dt * crewSpeed, elapsed);
+    footprints.update(elapsed);
+    if (space === 'inside') world.sun.intensity = 0; // sealed module: only the habitat lights
 
     const fwdIn = (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0) - (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) + touch.y;
     const sideIn = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0) + touch.x;
     const running = sprint || keys.has('ShiftLeft') || keys.has('ShiftRight');
 
-    if (!paused && mode === 'walk') {
+    if (!paused && mode === 'walk' && !watching) {
       // Walking: slower acceleration in the air, real surface gravity
       const max = (running ? (worldId === 'moon' ? 3.2 : 2.8) : 1.6) * Math.min(1, Math.hypot(fwdIn, sideIn) || 0);
       const [fx, fz] = forward(player.yaw);
@@ -321,7 +385,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       [nx, nz] = collide(nx, nz, 0.38);
       player.x = nx;
       player.z = nz;
-      insideGH = Math.hypot(nx - ghWall.x, nz - ghWall.z) < ghWall.r;
+      insideGH = space === 'outside' && Math.hypot(nx - ghWall.x, nz - ghWall.z) < ghWall.r;
       const g = groundAt(nx, nz);
       player.vy -= gravity * dt;
       player.y += player.vy * dt;
@@ -338,20 +402,33 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       if (player.onGround && sp > 0.2) {
         bobPhase += dt * sp * (gravity < 2.5 ? 2.6 : 3.4);
         const sgn = Math.sign(Math.sin(bobPhase));
-        if (sgn !== lastStepSign && sgn < 0) sound.footstep(gravity);
+        if (sgn !== lastStepSign) {
+          if (sgn < 0) sound.footstep(gravity);
+          if (space === 'outside' && !insideGH) {
+            footprints.add(player.x, g, player.z, player.yaw + Math.PI, sgn, elapsed);
+            if (!toldFootprints && elapsed > 6) {
+              toldFootprints = true;
+              info(worldId === 'moon'
+                ? 'Look behind you: your bootprints. With no wind or rain on the Moon, prints like the Apollo astronauts\' from 1969–72 can last tens of thousands to millions of years, until tiny meteorite impacts slowly churn the dust.'
+                : 'Look behind you: your bootprints. On Mars the wind slowly fills them in, the same way it wipes away rover tracks over weeks and months.', 'Footprints');
+            }
+          }
+        }
         lastStepSign = sgn;
       }
       const bob = player.onGround ? Math.sin(bobPhase) * 0.035 * Math.min(1, sp) : 0;
       camera.position.set(player.x, player.y + 1.66 + bob, player.z);
       camera.rotation.set(player.pitch, player.yaw, Math.sin(bobPhase * 0.5) * 0.01 * Math.min(1, sp));
       vm.position.set(Math.sin(bobPhase * 0.5) * 0.012 * sp, Math.abs(Math.sin(bobPhase)) * 0.012 * sp - (player.onGround ? 0 : 0.03), 0);
-      // Suit oxygen (real EVA suits last ~8 hours; here it is sped up)
-      suitO2 = Math.max(0, suitO2 - dt * (running ? 0.45 : 0.25));
+      // Suit oxygen (real EVA suits last ~8 hours; here it is sped up). Inside, no suit needed.
+      if (space === 'outside') suitO2 = Math.max(0, suitO2 - dt * (running ? 0.45 : 0.25));
+      // Visiting a historic site
+      if (space === 'outside' && !tasks.heritage) {
+        for (const h of heritage.sites) if (Math.hypot(player.x - h.x, player.z - h.z) < h.r) taskDone('heritage');
+      }
       if (suitO2 === 0) {
         info('Your suit oxygen ran out, so the crew pulled you back inside. Real EVAs are planned with big safety margins.', 'Suit O₂ empty');
-        player.x = 8.5;
-        player.z = 1.2;
-        suitO2 = 100;
+        goInside();
       }
     }
 
@@ -442,6 +519,36 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       }
     }
 
+    // Watch a junior astronaut at work (third-person follow camera)
+    if (watching) {
+      const m = crew.get(watching);
+      m.model.getWorldPosition(tmpV2);
+      const inside = m.space === 'inside';
+      tmpV2.y += m.phase === 'rest' ? 0.4 : 1.3;
+      const back = inside ? 2.1 : 3.4;
+      const h = m.phase === 'rest' ? 0 : m.heading;
+      tmpV.set(tmpV2.x - Math.sin(h) * back + Math.cos(h) * 0.9, tmpV2.y + (inside ? 0.45 : 1.2), tmpV2.z - Math.cos(h) * back - Math.sin(h) * 0.9);
+      if (inside) {
+        tmpV.z = Math.max(interior.bounds.minZ - 0.5, Math.min(interior.bounds.maxZ + 0.5, tmpV.z));
+        tmpV.x = Math.max(interior.bounds.minX, Math.min(interior.bounds.maxX, tmpV.x));
+      } else {
+        tmpV.y = Math.max(tmpV.y, heightAt(tmpV.x, tmpV.z) + 0.8);
+      }
+      const snap = camera.position.distanceTo(tmpV) > 30;
+      if (snap) camera.position.copy(tmpV);
+      else camera.position.lerp(tmpV, 1 - Math.exp(-dt * 4));
+      camera.lookAt(tmpV2);
+      vmRoot.visible = false;
+    } else if (mode === 'walk') {
+      vmRoot.visible = space === 'outside';
+    }
+    const camInside = watching ? crew.get(watching).space === 'inside' : space === 'inside';
+    if (camInside) world.sun.intensity = 0;
+
+    // Satellites overhead
+    const risen = heritage.update(elapsed, camera.position);
+    if (risen && !camInside && !watching) info(risen.note, `🛰 ${risen.name} passing overhead`);
+
     // Shadows follow the camera
     world.sun.position.set(camera.position.x, 0, camera.position.z).add(sunOffset);
     world.sun.target.position.set(camera.position.x, 0, camera.position.z);
@@ -449,7 +556,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
 
     // Helmet lamp on automatically in the dark
     const dark = Math.max(world.cur.dark, world.cur.storm * 0.7);
-    lamp.intensity = lampOn || dark > 0.5 ? 60 : 0;
+    lamp.intensity = camInside ? 0 : lampOn || dark > 0.5 ? 60 : 0;
 
     // Scanner beam fade
     if (beamT > 0) {
@@ -462,11 +569,26 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
 
     // Aim check (is a rock in the crosshair?)
     aimT -= dt;
-    if (aimT <= 0 && mode === 'walk') {
+    if (aimT <= 0 && mode === 'walk' && space === 'outside' && !watching) {
       aimT = 0.12;
       raycaster.setFromCamera(center, camera);
       const hit = raycaster.intersectObject(world.rocks, false)[0];
       aimRock = !!(hit && !scanned.has(hit.instanceId));
+    }
+
+    // Name tags above the juniors (positioned every frame by the React layer)
+    if (cb.onCrewLabels) {
+      const rect = canvas.getBoundingClientRect();
+      const out = {};
+      for (const m of crew.members) {
+        m.model.getWorldPosition(tmpV);
+        tmpV.y += m.phase === 'rest' ? 0.7 : 2.25;
+        const sameSpace = m.space === (camInside ? 'inside' : 'outside') && m.model.visible;
+        const dist = camera.position.distanceTo(tmpV);
+        tmpV.project(camera);
+        out[m.id] = { x: ((tmpV.x + 1) / 2) * rect.width, y: ((1 - tmpV.y) / 2) * rect.height, visible: sameSpace && tmpV.z < 1 && dist < 60 && Math.abs(tmpV.x) < 1.1 && Math.abs(tmpV.y) < 1.1 };
+      }
+      cb.onCrewLabels(out);
     }
 
     // HUD updates ~10x a second
@@ -478,8 +600,17 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       const px = mode === 'drive' ? rv.x : player.x;
       const pz = mode === 'drive' ? rv.z : player.z;
       const bearing = (((Math.atan2(bx - px, -(bz - pz)) * 180) / Math.PI) + 360) % 360;
+      const markers = space === 'outside' ? heritage.sites.map((h) => ({
+        id: h.id,
+        bearing: (((Math.atan2(h.x - px, -(h.z - pz)) * 180) / Math.PI) + 360) % 360,
+        dist: Math.hypot(h.x - px, h.z - pz),
+      })) : [];
       cb.onHud && cb.onHud({
         mode,
+        space,
+        watching,
+        markers,
+        crew: crew.status(),
         driveCam,
         heading,
         beaconBearing: bearing,
@@ -610,10 +741,39 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
         taskDone('greenhouse');
         cb.onOpenGreenhouse && cb.onOpenGreenhouse();
       } else if (it.id === 'airlock') {
-        suitO2 = 100;
-        const others = tasks.scan > 0 || tasks.solar || tasks.greenhouse || tasks.drive;
-        if (others) taskDone('airlock');
-        info('Suit recharged with oxygen and power. Real EVA suits last about 8 hours.', 'Airlock');
+        goInside();
+      } else if (it.id === 'exitHab') {
+        goOutside();
+        info('Airlock cycled: helmet on, suit pressurized. Real EVA suits keep you alive for about 8 hours.', 'Outside');
+      } else if (it.title) {
+        taskDone('heritage');
+        info(it.text, it.title);
+      } else if (it.id === 'lifeSupport') {
+        const g = gameInfo;
+        info(`Oxygen tank ${g.o2.toFixed(1)} kg · water ${Math.round(g.water)} kg · water recycling 98% (like the ISS). ${g.broken || g.leak ? '⚠ Something is broken! Order Leo (engineer) to repair it from the 👥 crew panel.' : 'All systems nominal.'} The O₂ generator splits water into oxygen and hydrogen using electricity.`, 'Life support rack');
+      } else if (it.id === 'comms') {
+        const d = targetDistance(worldId, daysSinceJ2000(Date.now()));
+        info(`A radio message to Earth takes ${formatDelay(d.lightSeconds)} today, so you can't get instant help. ${gameInfo.forecast ? `CAPCOM's forecast: ${gameInfo.forecast}` : 'CAPCOM: nothing unusual in the forecast.'}`, '📡 Mission control');
+      } else if (it.id === 'galley') {
+        const r = cb.onCommanderAction ? cb.onCommanderAction('meal') : null;
+        info(r ? r.text : 'Meal time.', '🍲 Galley');
+      } else if (it.id === 'medical') {
+        const g = gameInfo;
+        info(`Crew health ${Math.round(g.health)}% · mission radiation dose ${g.dose.toFixed(1)} of 50 mSv. Doctors on Earth check astronauts' bones, eyes and heart before and after missions, because low gravity changes the body.`, '⚕ Medical bay');
+      } else if (it.id === 'lab') {
+        const fresh = scannedCount - analyzedCount;
+        const r = cb.onCommanderAction ? cb.onCommanderAction('analyze', fresh) : null;
+        if (r && r.used) analyzedCount += r.used;
+        info(r ? r.text : 'No samples.', '🔬 Lab bench');
+      } else if (it.id === 'exercise') {
+        info(`ISS astronauts exercise about 2 hours a day, because bones and muscles weaken without gravity. Even at ${gravity} m/s² you need to keep fit for the trip home.`, '🚴 Exercise bike');
+      } else if (it.id === 'pods') {
+        const resting = crew.status().filter((c) => c.taskId === 'rest').map((c) => c.name);
+        info(`${resting.length ? `${resting.join(' and ')} ${resting.length > 1 ? 'are' : 'is'} resting. ` : ''}Each crew member has a small private pod. Good sleep keeps the crew sharp and healthy.`, '🛏 Crew quarters');
+      } else if (it.id === 'command') {
+        cb.onOpenCrew && cb.onOpenCrew();
+      } else if (it.id === 'window') {
+        info(worldId === 'moon' ? 'Out of the window: grey hills, a black sky and the blue Earth hanging low over the horizon.' : 'Out of the window: a dusty butterscotch sky over Jezero Crater, an ancient lake bed.', 'Viewport');
       } else if (it.id === 'battery') {
         info(`Battery bank: ${Math.round(gameInfo.battery)} of ${gameInfo.capacity} kWh stored. It keeps the base alive when the panels can't.`, 'Battery bank');
       } else if (it.id === 'solar') {
@@ -623,8 +783,25 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
         info(INFO[worldId][it.id], it.id === 'reactor' ? 'Fission reactor' : 'Lander');
       }
     },
+    assignTask(id, taskId) {
+      const ok = crew.assign(id, taskId);
+      if (ok) taskDone('crew');
+      return ok;
+    },
+    setCrewSpeed(k) {
+      crewSpeed = k;
+    },
+    cancelTask(id) {
+      crew.cancel(id);
+    },
+    watch(id) {
+      watching = id || null;
+      if (!watching) {
+        vmRoot.visible = mode === 'walk' && space === 'outside';
+      }
+    },
     fire() {
-      if (paused || mode !== 'walk') return;
+      if (paused || mode !== 'walk' || space !== 'outside' || watching) return;
       sound.unlock();
       raycaster.setFromCamera(center, camera);
       const hit = raycaster.intersectObject(world.rocks, false)[0];
@@ -644,6 +821,7 @@ export function createFppScene({ canvas, worldId, onContextLost, cb }) {
       const facts = ROCK_FACTS[worldId];
       const f = facts[hit.instanceId % facts.length];
       taskDone('scan');
+      scannedCount += 1;
       setTimeout(() => sound.success(), 350);
       cb.onToast && cb.onToast({ title: `🔬 Sample: ${f.name}`, text: f.text, kind: 'scan' });
     },

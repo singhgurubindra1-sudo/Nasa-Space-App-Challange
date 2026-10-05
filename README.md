@@ -60,6 +60,47 @@ From the Briefing screen (or the **🧑‍🚀 EVA** button on the 3D view), ste
 - **Detailed astronauts:** jointed suits with bearing rings, a life-support backpack, chest control module, gold visor, helmet lamps and commander stripes, plus a low-gravity walk cycle.
 - **Sound (synthesized in the browser, no files):** suit fan, breathing, footsteps through your boots, radio squelch, scanner chirps and the rover motor. On Mars you also hear wind that gets louder in dust storms. On the Moon there's no outside sound at all, because there's no air to carry it. Mute with 🔊.
 
+## Crew command: 1 Senior + 3 Junior Astronauts
+
+You're the **Senior Astronaut**. Your three **Junior Astronauts** each have a specialty and a crew colour:
+
+| Junior | Role | Specialty (★) |
+|---|---|---|
+| 🌱 Asha | Botanist | Greenhouse, rest |
+| 🔧 Leo | Engineer | Repairs, solar panels, regolith shielding, reactor |
+| 🪨 Mei | Geologist | Rock samples, lab analysis |
+
+In first-person mode press **Q** (or tap **👥 Crew**) and give an order. The junior then **does the task live in 3D**:
+- They plan a route around the habitat modules, battery and greenhouse wall, and walk it (leaving footprints).
+- For inside jobs they **cycle the airlock**, take their helmet off and walk to the right station.
+- They work with the right tool and pose: kneeling with a watering can in the greenhouse, shovelling regolith, brushing dust off panels, typing at the life-support rack or lab bench, or lying in their sleep pod.
+- They radio back when they start and finish, with a real fact about the job.
+- **👁 Watch** gives you a follow camera to see exactly what they're doing. **📻 Recall** calls them back, and **⏩ Fast-forward** speeds up crew work 4×.
+
+Finished tasks **change the mission**: greenhouse growth, shielding, battery, science, morale, health, or a repair that uses a spare part. Each junior can finish one task per sol, and specialists work faster and get 50% more done. Rules: [`src/engine/crew.js`](src/engine/crew.js). Data: [`src/data/crew.json`](src/data/crew.json).
+
+## The habitat (walk-in)
+
+Use the airlock (E) to go inside. The module has working stations:
+- **Life-support rack:** live O₂, water and repair status.
+- **Comms:** today's real radio delay to Earth, plus CAPCOM's forecast.
+- **Galley:** share a meal, +morale once per sol.
+- **Medical bay:** crew health and radiation dose.
+- **Lab bench:** turn the rocks you scanned outside into science points.
+- **Exercise bike:** why astronauts exercise about 2 hours a day.
+- **Sleep pods:** where juniors rest.
+- **Command console:** opens crew orders.
+- **Viewport window.**
+
+## Historic sites and the sky
+
+- **Mars:** NASA's **Ingenuity** helicopter at real size (49 cm), with the broken rotor blade from its 72nd and final flight in January 2024. Also Perseverance's **"Three Forks" sample depot**: the 10 tubes it left in 2022–23, marked with orange flags.
+- **Moon:** a lander lying on its side, like **IM-1 "Odysseus"**, which tipped over near Malapert A close to the south pole in February 2024.
+- **Satellites** pass overhead with a fact when they do: LRO at the Moon, MRO and MAVEN at Mars. Their passes are sped up.
+- **Footprints:** you and the crew leave bootprints. On the Moon they stay (with no wind, Apollo prints can last tens of thousands to millions of years). On Mars the wind fills them in.
+
+Historic sites show as ◇ on the compass, and visiting one is a commander task.
+
 ## How the brief maps to features
 
 | The brief asks for… | Survive 30 Sols gives… |
@@ -157,7 +198,11 @@ src/three/solarScene.js    3D Mission Control scene (three.js)
 src/three/world.js         shared surface world: terrain, sky, base hardware, status visuals
 src/three/baseScene.js     orbiting 3D base view
 src/three/fppScene.js      first-person EVA + rover driving simulator
-src/three/astronaut.js     detailed spacesuit model + walk cycle
+src/three/astronaut.js     detailed spacesuit model, walk cycle, work poses, tools
+src/three/crewSim.js       junior astronauts: route-finding, airlock, tasks, live progress
+src/three/habInterior.js   walk-in habitat module and its stations
+src/three/heritage.js      Ingenuity, sample depot, tipped lander, satellites, footprints
+src/engine/crew.js         crew task rules (one per junior per sol, specialist bonus)
 src/audio/sound.js         Web Audio sound engine (synthesized)
 src/engine/orbits.js       planet positions by date, Earth–target distance, radio delay
 src/screens/               the 6 screens: choose world, briefing, plan, event+report, debrief, learn+teacher

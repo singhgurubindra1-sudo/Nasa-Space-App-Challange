@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { seeded, canvasTexture, planetTexture, glowTexture } from './solarScene.js';
 import { PLANETS } from '../engine/orbits.js';
 import { createAstronaut, animateAstronaut } from './astronaut.js';
+import { JUNIORS } from '../engine/crew.js';
 
 // ---------- Noise ----------
 function makeNoise(seed) {
@@ -206,7 +207,7 @@ function buildRocks(worldId, heightAt, look, count) {
       d = 9 + Math.pow(rnd(), 1.6) * 150;
       x = Math.cos(a) * d;
       z = Math.sin(a) * d;
-    } while (d < 15 && rnd() < 0.85); // keep the base area mostly clear
+    } while ((d < 15 && rnd() < 0.85) || Math.hypot(x + 9, z - 9) < 6.5 || d < 11); // keep the base area and greenhouse clear
     const s = (0.08 + Math.pow(rnd(), 3.2) * (worldId === 'mars' ? 1.7 : 1.3)) * (d > 60 ? 1.6 : 1);
     e.set(rnd() * 0.6, rnd() * Math.PI * 2, rnd() * 0.6);
     q.setFromEuler(e);
@@ -413,7 +414,7 @@ function lander(tall) {
 // ---------- World ----------
 // Builds sky, terrain, rocks and the base into `scene`. Returns handles plus tick(dt, elapsed)
 // which animates lighting, the base status visuals and event effects.
-export function buildWorld(scene, worldId, { renderer, small }) {
+export function buildWorld(scene, worldId, { renderer, small, ambientCrew = true }) {
   const look = LOOKS[worldId];
   const gravity = worldId === 'moon' ? 1.62 : 3.71;
   let autoRover = true;
@@ -702,7 +703,8 @@ export function buildWorld(scene, worldId, { renderer, small }) {
   const rov = rover();
   base.add(rov);
   labels.rover = rov;
-  const crew = [createAstronaut({ commander: false }), createAstronaut({ commander: false })];
+  // The three junior astronauts, in their crew colours (first-person mode runs its own crew simulation instead)
+  const crew = ambientCrew ? JUNIORS.map((j) => createAstronaut({ bandColor: j.color, skin: j.skin, hair: j.hair })) : [];
   crew.forEach((a) => base.add(a));
 
   // Window / flood lights for the night

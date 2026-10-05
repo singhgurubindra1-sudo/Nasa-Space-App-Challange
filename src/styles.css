@@ -391,3 +391,38 @@ kbd { display: inline-block; min-width: 1.6em; padding: 1px 6px; border-radius: 
   .dash .small-btn { min-height: 36px; padding: 4px 10px; font-size: .8rem; margin-top: 0; }
   .fpp-toast { top: 52px; font-size: .78rem; }
 }
+
+/* ---------- Crew command ---------- */
+.crew-btn { border-color: #facc15 !important; font-weight: 700; }
+.icon-btn.on { background: var(--accent) !important; color: var(--accent-ink) !important; }
+.cmp-site { position: absolute; top: 2px; transform: translateX(-50%); color: #fbbf24; font-size: .9rem; text-shadow: 0 0 6px #f59e0b; }
+.crew-panel { position: absolute; inset: 0; z-index: 22; display: grid; place-items: center; background: rgba(2, 6, 14, .55); padding: 16px; overflow-y: auto; }
+.crew-card { width: min(680px, 100%); }
+.crew-list { display: grid; gap: 10px; margin-top: 8px; }
+.crew-member { border: 1px solid var(--line); border-left-width: 5px; border-radius: 12px; padding: 10px; background: var(--surface-2); }
+.crew-top { display: flex; gap: 10px; align-items: flex-start; }
+.crew-badge { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-size: 1.2rem; flex: none; }
+.crew-id { flex: 1; min-width: 0; }
+.crew-status { color: var(--text-2); margin-top: 2px; }
+.crew-id .gauge-bar { height: 6px; margin-top: 6px; }
+.crew-actions { display: flex; gap: 6px; }
+.crew-tasks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.crew-task { background: var(--surface); border: 1px solid var(--line); border-radius: 99px; padding: 6px 10px; font-size: .82rem; min-height: 36px; }
+.crew-task.spec { border-color: #facc15; color: #fde68a; }
+.crew-task:hover { border-color: var(--accent); }
+.crew-tags { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.crew-tag { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: .72rem; background: rgba(5,12,24,.72); border: 1px solid; border-radius: 8px; padding: 2px 7px; color: #e2e8f0; }
+.crew-strip { position: absolute; left: 12px; top: 196px; z-index: 5; display: flex; flex-direction: column; gap: 6px; width: 200px; }
+.crew-chip { position: relative; overflow: hidden; text-align: left; background: rgba(5,12,24,.6); border: 1px solid; border-left-width: 4px; border-radius: 10px; padding: 5px 8px; color: #e2e8f0; display: flex; flex-direction: column; }
+.crew-chip small { color: #cbd5e1; font-size: .68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crew-chip-bar { position: absolute; left: 0; bottom: 0; height: 3px; }
+.watch-banner { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 6; display: flex; gap: 12px; align-items: center; background: rgba(5,12,24,.85); border: 2px solid; border-radius: 14px; padding: 8px 12px; max-width: 94vw; flex-wrap: wrap; justify-content: center; font-size: .9rem; }
+.watch-banner .btn { margin-top: 0; }
+@media (max-width: 700px) {
+  .crew-strip { top: auto; bottom: 168px; left: 10px; width: 160px; }
+  .crew-chip small { font-size: .62rem; }
+}
+@media (max-height: 500px) {
+  .crew-strip { top: 54px; left: auto; right: 10px; bottom: auto; width: 170px; }
+}
+.btn.on { background: var(--accent); color: var(--accent-ink); }

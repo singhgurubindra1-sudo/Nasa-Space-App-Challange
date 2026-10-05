@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import ChooseWorld from './screens/ChooseWorld.jsx';
 import Briefing from './screens/Briefing.jsx';
 import PlanSol from './screens/PlanSol.jsx';
@@ -7,6 +7,7 @@ import Debrief from './screens/Debrief.jsx';
 import Learn from './screens/Learn.jsx';
 import { createGame, nextSol, setCrop } from './engine/engine.js';
 import GreenhousePanel from './components/GreenhousePanel.jsx';
+import { applyCrewTask, shareMeal, analyzeSamples } from './engine/crew.js';
 import { sound } from './audio/sound.js';
 import { newSeed } from './engine/rng.js';
 
@@ -47,6 +48,18 @@ export default function App() {
   const [eva, setEva] = useState(false); // first-person EVA mode
   const [ghOpen, setGhOpen] = useState(false);
   const changeCrop = (crop) => setGame((g) => setCrop(g, crop));
+  // Crew and commander actions need the latest game state synchronously (they return a message).
+  const gameRef = useRef(game);
+  gameRef.current = game;
+  const commit = (r) => {
+    if (r.state !== gameRef.current) {
+      gameRef.current = r.state;
+      setGame(r.state);
+    }
+    return r;
+  };
+  const crewTask = (juniorId, taskId) => commit(applyCrewTask(gameRef.current, juniorId, taskId)).text;
+  const commanderAction = (kind, n) => commit(kind === 'meal' ? shareMeal(gameRef.current) : analyzeSamples(gameRef.current, n || 0));
   const openEva = () => {
     sound.unlock();
     setEva(true);
@@ -138,7 +151,7 @@ export default function App() {
 
       {eva && game && (
         <Suspense fallback={<div className="fpp fpp-loading"><p>🧑‍🚀 Suiting up…</p></div>}>
-          <FppView state={game} onSetCrop={changeCrop} onClose={() => setEva(false)} />
+          <FppView state={game} onSetCrop={changeCrop} onCrewTask={crewTask} onCommanderAction={commanderAction} onClose={() => setEva(false)} />
         </Suspense>
       )}
       {ghOpen && game && <GreenhousePanel state={game} onSetCrop={changeCrop} onClose={() => setGhOpen(false)} />}

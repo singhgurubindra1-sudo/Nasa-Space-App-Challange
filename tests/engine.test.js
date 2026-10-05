@@ -119,3 +119,35 @@ describe('greenhouse crops', () => {
     expect(Object.keys(CROPS)).toEqual(expect.arrayContaining(['mixed', 'lettuce', 'potato', 'wheat', 'soybean']));
   });
 });
+
+import { applyCrewTask, analyzeSamples, shareMeal, canAssign } from '../src/engine/crew.js';
+
+describe('crew tasks', () => {
+  it('specialists get a bonus and each junior does one task per sol', () => {
+    const s0 = createGame('mars', 4);
+    const a = applyCrewTask(s0, 'asha', 'greenhouse'); // botanist: specialist
+    const b = applyCrewTask(s0, 'mei', 'greenhouse');
+    expect(a.state.maturity).toBeGreaterThan(b.state.maturity);
+    expect(canAssign(a.state, 'asha')).toBe(false);
+    expect(applyCrewTask(a.state, 'asha', 'shield').state).toBe(a.state);
+    // Next sol the limit resets
+    const next = nextSol(a.state, { alloc: { lifeSupport: 19, greenhouse: 8, shielding: 4, science: 4 }, action: 'plant' }).state;
+    expect(canAssign(next, 'asha')).toBe(true);
+  });
+  it('repair uses a spare part to fix a failure', () => {
+    const s = { ...createGame('moon', 4), broken: true, spares: 1 };
+    const r = applyCrewTask(s, 'leo', 'repair');
+    expect(r.state.broken).toBe(false);
+    expect(r.state.spares).toBe(0);
+  });
+  it('lab turns scanned samples into science, capped per sol; meal once per sol', () => {
+    const s = createGame('mars', 4);
+    const r = analyzeSamples(s, 8);
+    expect(r.used).toBe(5);
+    expect(r.state.science).toBe(s.science + 10);
+    expect(analyzeSamples(r.state, 2).state).toBe(r.state);
+    const m = shareMeal(s);
+    expect(m.state.morale).toBeGreaterThan(s.morale);
+    expect(shareMeal(m.state).state).toBe(m.state);
+  });
+});
