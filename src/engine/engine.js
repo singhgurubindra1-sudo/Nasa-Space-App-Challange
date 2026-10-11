@@ -26,6 +26,16 @@ export const NEEDS = {
 
 // ---------- Event schedule (rolled once at the start, so forecasts are honest) ----------
 
+// A training module can script its events instead: [{ sol, id, duration }].
+export function scriptedSchedule(sols, events = []) {
+  const schedule = Array.from({ length: sols + 1 }, () => null);
+  for (const e of events) {
+    const ev = EVENTS[e.id];
+    schedule[e.sol] = { eventId: ev.id, duration: e.duration || ev.durationMin, forecast: ev.forecast, falseAlarm: false };
+  }
+  return schedule;
+}
+
 export function generateSchedule(worldId, seed) {
   const rng = makeRng(seed ^ 0x9e3779b9);
   const pool = eventData.events.filter((e) => (e.worlds[worldId] || 0) > 0);
@@ -81,19 +91,29 @@ export function generateSchedule(worldId, seed) {
 
 // ---------- New game ----------
 
-export function createGame(worldId, seed) {
+// `setup` turns a normal 30-sol mission into a training module or a class mission:
+//   { module, sols, events (scripted list), systems, actions, foodStartKg, classCode }
+// It is stored in the state, so replays (and the turning-point finder) rebuild the same mission.
+export function createGame(worldId, seed, setup = {}) {
   if (!WORLDS[worldId]) throw new Error(`Unknown world ${worldId}`);
+  const sols = setup.sols || G.sols;
+  const systems = setup.systems || SYSTEMS;
+  const choices = defaultChoices();
+  for (const k of SYSTEMS) if (!systems.includes(k)) choices.alloc[k] = 0;
+  if (setup.actions && !setup.actions.includes(choices.action)) choices.action = setup.actions[0];
   return {
     version: 1,
     worldId,
     seed,
+    setup,
+    sols,
     sol: 1,
     status: 'playing',
     lossReason: null,
-    battery: G.batteryStartKwh,
+    battery: setup.batteryStartKwh ?? G.batteryStartKwh,
     o2: G.o2StartKg,
     water: G.waterStartKg,
-    food: G.foodStartKg,
+    food: setup.foodStartKg ?? G.foodStartKg,
     health: G.health.start,
     morale: G.morale.start,
     dose: 0,
@@ -106,11 +126,16 @@ export function createGame(worldId, seed) {
     leak: false,
     active: [], // ongoing multi-sol events: { id, remaining, solarFactor?, lifeSupportExtraKwh? }
     batteryDeadStreak: 0,
-    schedule: generateSchedule(worldId, seed),
+    schedule: setup.events ? scriptedSchedule(sols, setup.events) : generateSchedule(worldId, seed),
     history: [],
-    lastChoices: defaultChoices(),
+    lastChoices: choices,
   };
 }
+
+// Mission length, systems and actions (older saves have no setup: full 30-sol mission).
+export const missionSols = (state) => state.sols || G.sols;
+export const allowedSystems = (state) => (state.setup && state.setup.systems) || SYSTEMS;
+export const allowedActions = (state) => (state.setup && state.setup.actions) || ACTIONS;
 
 export const CROPS = Object.fromEntries(Object.entries(G.crops).filter(([k]) => !k.startsWith('_')));
 
@@ -186,7 +211,10 @@ export function nextSol(state, choices) {
   const s = structuredClone(state);
   const c = conditions(state);
   const alloc = clampAlloc(choices.alloc, c.available);
-  const action = ACTIONS.includes(choices.action) ? choices.action : 'plant';
+  const systems = allowedSystems(state);
+  for (const k of SYSTEMS) if (!systems.includes(k)) alloc[k] = 0;
+  const actions = allowedActions(state);
+  const action = actions.includes(choices.action) ? choices.action : actions[0];
   const used = SYSTEMS.reduce((sum, k) => sum + alloc[k], 0);
   const msgs = [];
   const before = snapshot(state);
@@ -196,6 +224,9 @@ export function nextSol(state, choices) {
   s.battery = net >= 0
     ? Math.min(G.batteryCapacityKwh, s.battery + net * G.batteryChargeEfficiency)
     : Math.max(0, s.battery + net);
+
+  // Where losses came from, so the debrief can explain a failure step by step.
+  const causes = { cold: 0, hunger: 0, lowMorale: 0, o2Shortfall: 0, o2Leak: 0, cosmic: 0, flare: 0, explore: 0 };
 
   // 2. The chosen action.
   let shelter = false;
@@ -230,6 +261,7 @@ export function nextSol(state, choices) {
     s.science += pts;
     s.morale += 4;
     s.dose += world.exploreDoseMsv;
+    causes.explore += world.exploreDoseMsv;
     if (world.exploreWaterKg) {
       s.water += world.exploreWaterKg;
       msgs.push(`Moonwalk to a shadowed crater: mined ${world.exploreWaterKg} kg of water from ice, +${pts} science.`);
@@ -246,7 +278,11 @@ export function nextSol(state, choices) {
   const eff = s.broken ? 0.5 : 1;
   const f = clamp((alloc.lifeSupport * eff) / c.lsNeed, 0, 1);
   s.o2 += f * NEEDS.o2 - NEEDS.o2;
-  if (s.leak) s.o2 -= 1.5;
+  causes.o2Shortfall += NEEDS.o2 - f * NEEDS.o2;
+  if (s.leak) {
+    s.o2 -= 1.5;
+    causes.o2Leak += 1.5;
+  }
   s.water -= NEEDS.water * (1 - N.waterRecovery.value * f);
   if (f < 1) msgs.push(`Life support ran at ${Math.round(f * 100)}%. Oxygen and water reserves were used to cover the gap.`);
 
@@ -272,6 +308,7 @@ export function nextSol(state, choices) {
   // 6. Radiation from cosmic rays, every sol.
   const gcr = world.doseMsvPerSol * (1 - (s.shield / 100) * G.shielding.maxCosmicRayBlock) * (shelter ? G.shelter.cosmicFactor : 1);
   s.dose += gcr;
+  causes.cosmic += gcr;
 
   // 7. Today's event.
   const entry = state.schedule[state.sol];
@@ -285,6 +322,7 @@ export function nextSol(state, choices) {
     if (e.flare) {
       const flare = world.flareDoseMsv * (1 - (s.shield / 100) * G.shielding.maxFlareBlock) * (shelter ? G.shelter.flareFactor : 1);
       s.dose += flare;
+      causes.flare += flare;
       s.morale -= 3;
       eventNote = `The particle storm added ${round1(flare)} mSv${shelter ? ' (sheltering cut it by 75%)' : ''}.`;
     }
@@ -295,6 +333,7 @@ export function nextSol(state, choices) {
     if (e.leak) {
       s.leak = true;
       s.o2 -= 1.5;
+      causes.o2Leak += 1.5;
       s.morale -= 5;
     }
     if (e.food) s.food += e.food;
@@ -318,10 +357,17 @@ export function nextSol(state, choices) {
   const H = G.health;
   if (f < H.coldThreshold) {
     s.health -= (H.coldThreshold - f) * H.coldPenalty;
+    causes.cold += (H.coldThreshold - f) * H.coldPenalty;
     s.morale -= 3;
   }
-  if (hungry) s.health -= H.hungerPenalty;
-  if (s.morale < 30) s.health -= H.lowMoralePenalty;
+  if (hungry) {
+    s.health -= H.hungerPenalty;
+    causes.hunger += H.hungerPenalty;
+  }
+  if (s.morale < 30) {
+    s.health -= H.lowMoralePenalty;
+    causes.lowMorale += H.lowMoralePenalty;
+  }
   if (f >= 1 && !hungry && s.morale >= 50) s.health += H.recoverPerSol;
   s.morale += G.morale.dailyDrift;
   if (s.maturity > 0.5 && alloc.greenhouse >= gh.minPowerToSurvive) s.morale += crop.moraleBonus; // fresh food!
@@ -356,6 +402,12 @@ export function nextSol(state, choices) {
     generation: c.generation,
     solar: c.solar,
     lifeSupportFraction: round1(f),
+    lsPowerNeeded: c.lsPowerNeeded,
+    available: c.available,
+    brokenAtStart: state.broken,
+    leakAtStart: state.leak,
+    hungry,
+    causes: Object.fromEntries(Object.entries(causes).map(([k, v]) => [k, Math.round(v * 100) / 100])),
     eventId: event ? event.id : null,
     forecast: entry ? entry.forecast : null,
     ...snapshot(s),
@@ -366,7 +418,7 @@ export function nextSol(state, choices) {
   if (lossReason) {
     s.status = 'lost';
     s.lossReason = lossReason;
-  } else if (state.sol >= G.sols) {
+  } else if (state.sol >= missionSols(state)) {
     s.status = 'won';
   } else {
     s.sol = state.sol + 1;
@@ -435,8 +487,8 @@ export function outcomeScore(state) {
 }
 
 // Replay a list of choices from a fresh start (same seed = same events).
-export function replay(worldId, seed, choicesList) {
-  let s = createGame(worldId, seed);
+export function replay(worldId, seed, choicesList, setup) {
+  let s = createGame(worldId, seed, setup);
   for (const ch of choicesList) {
     if (s.status !== 'playing') break;
     s = nextSol(s, ch).state;

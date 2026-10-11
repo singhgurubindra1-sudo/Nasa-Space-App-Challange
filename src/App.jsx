@@ -6,7 +6,11 @@ import PlanSol from './screens/PlanSol.jsx';
 import EventReport from './screens/EventReport.jsx';
 import Debrief from './screens/Debrief.jsx';
 import Learn from './screens/Learn.jsx';
-import { createGame, nextSol, setCrop } from './engine/engine.js';
+import Academy from './screens/Academy.jsx';
+import Certificate from './screens/Certificate.jsx';
+import Teacher from './screens/Teacher.jsx';
+import { createGame, nextSol, setCrop, stars } from './engine/engine.js';
+import { moduleById, moduleSetup, moduleWorld, recordResult, recordQuiz } from './engine/training.js';
 import GreenhousePanel from './components/GreenhousePanel.jsx';
 import { applyCrewTask, shareMeal, analyzeSamples } from './engine/crew.js';
 import { sound } from './audio/sound.js';
@@ -19,6 +23,7 @@ const FppView = lazy(() => import('./components/FppView.jsx'));
 
 const SAVE_KEY = 'survive30sols.save.v1';
 const PREFS_KEY = 'survive30sols.prefs.v1';
+const ACADEMY_KEY = 'survive30sols.academy.v1';
 
 const load = (key) => {
   try {
@@ -44,7 +49,8 @@ export default function App() {
   const [voice, setVoice] = useState(!!prefs.voice);
   const [game, setGame] = useState(null);
   const [report, setReport] = useState(null);
-  const [screen, setScreen] = useState('dashboard');
+  const [screen, setScreen] = useState('academy');
+  const [progress, setProgress] = useState(() => load(ACADEMY_KEY) || {});
   const [returnTo, setReturnTo] = useState('choose');
   const [preview, setPreview] = useState(null); // live slider values from the plan screen
   const [eva, setEva] = useState(false); // first-person EVA mode
@@ -71,6 +77,9 @@ export default function App() {
     store(PREFS_KEY, { world, voice });
   }, [world, voice]);
   useEffect(() => {
+    store(ACADEMY_KEY, progress);
+  }, [progress]);
+  useEffect(() => {
     if (game && game.status === 'playing') store(SAVE_KEY, game);
     else if (game) store(SAVE_KEY, null);
   }, [game]);
@@ -79,14 +88,32 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [screen]);
 
+  const begin = (w, seed, setup = {}) => {
+    setGame(createGame(w, seed, setup));
+    setReport(null);
+    setScreen('briefing');
+  };
   const start = (w = world) => {
     setWorld(w);
-    setGame(createGame(w, newSeed()));
-    setReport(null);
+    begin(w, newSeed());
+  };
+  const startModule = (mod, w) => begin(moduleWorld(mod, w), newSeed(), moduleSetup(mod));
+  const joinClass = (cls) => begin(cls.worldId, cls.seed, { classCode: cls.code });
+  // Same module or class mission again (a class mission keeps its seed so results stay comparable).
+  const restart = () => {
+    const setup = game.setup || {};
+    if (!setup.module && !setup.classCode) return start(game.worldId);
+    begin(game.worldId, setup.classCode ? game.seed : newSeed(), setup);
+  };
+  const resume = () => {
+    setGame(saved);
+    setWorld(saved.worldId);
     setScreen('briefing');
   };
   const launch = (choices) => {
     const out = nextSol(game, choices);
+    const mod = out.state.setup && out.state.setup.module ? moduleById(out.state.setup.module) : null;
+    if (mod && out.state.status !== 'playing') setProgress((p) => recordResult(p, mod, out.state, stars(out.state)));
     setGame(out.state);
     setReport(out.report);
     setScreen('event');
@@ -99,7 +126,7 @@ export default function App() {
   return (
     <div className="app">
       <nav className="topbar">
-        <button className="brand" onClick={() => setScreen(game && game.status === 'playing' ? 'briefing' : 'dashboard')} aria-label="Survive 30 Sols home">
+        <button className="brand" onClick={() => setScreen(game && game.status === 'playing' ? 'briefing' : 'academy')} aria-label="Survive 30 Sols home">
           🚀 <span>Survive 30 Sols</span>
         </button>
         <div className="topbar-actions">
@@ -110,8 +137,8 @@ export default function App() {
           {screen !== 'learn' && (
             <button className="icon-btn" onClick={learn} title="Learn and teacher page">📘 <span className="hide-sm">Learn</span></button>
           )}
-          {game && game.status === 'playing' && screen !== 'choose' && screen !== 'dashboard' && screen !== 'learn' && (
-            <button className="icon-btn" onClick={() => setScreen('choose')} title="Quit to menu (progress is saved)">✕</button>
+          {game && game.status === 'playing' && ['briefing', 'plan', 'event'].includes(screen) && (
+            <button className="icon-btn" onClick={() => setScreen('academy')} title="Quit to the academy (progress is saved)">✕</button>
           )}
         </div>
       </nav>
@@ -122,19 +149,33 @@ export default function App() {
             <BaseView key={game.worldId} state={game} report={report} screen={screen} preview={screen === 'plan' ? preview : null} onEva={openEva} />
           </Suspense>
         )}
+        {screen === 'academy' && (
+          <Academy
+            progress={progress}
+            setProgress={setProgress}
+            saved={saved}
+            onContinue={resume}
+            onStartModule={startModule}
+            onJoinClass={joinClass}
+            onExplorer={() => setScreen('dashboard')}
+            onFreePlay={() => setScreen('choose')}
+            onLearn={learn}
+            onCertificate={() => setScreen('certificate')}
+            onTeacher={() => setScreen('teacher')}
+          />
+        )}
+        {screen === 'certificate' && <Certificate progress={progress} setProgress={setProgress} onBack={() => setScreen('academy')} />}
+        {screen === 'teacher' && <Teacher onBack={() => setScreen('academy')} />}
         {screen === 'dashboard' && (
           <Dashboard
             onNext={() => setScreen('choose')}
+            onAcademy={() => setScreen('academy')}
             onMission={(w) => {
               setWorld(w);
               setScreen('choose');
             }}
             saved={saved}
-            onContinue={() => {
-              setGame(saved);
-              setWorld(saved.worldId);
-              setScreen('briefing');
-            }}
+            onContinue={resume}
           />
         )}
         {screen === 'choose' && (
@@ -144,11 +185,7 @@ export default function App() {
             setWorld={setWorld}
             onStart={() => start()}
             saved={saved}
-            onContinue={() => {
-              setGame(saved);
-              setWorld(saved.worldId);
-              setScreen('briefing');
-            }}
+            onContinue={resume}
             onLearn={learn}
           />
         )}
@@ -163,9 +200,18 @@ export default function App() {
           />
         )}
         {screen === 'debrief' && game && (
-          <Debrief state={game} onAgain={() => start(game.worldId)} onOther={() => start(game.worldId === 'moon' ? 'mars' : 'moon')} onLearn={learn} />
+          <Debrief
+            state={game}
+            progress={progress}
+            onAgain={restart}
+            onOther={() => start(game.worldId === 'moon' ? 'mars' : 'moon')}
+            onLearn={learn}
+            onAcademy={() => setScreen('academy')}
+            onModule={(m) => startModule(m)}
+            onQuiz={(id, score) => setProgress((p) => recordQuiz(p, id, score))}
+          />
         )}
-        {screen === 'learn' && <Learn onBack={() => setScreen(returnTo === 'learn' ? 'dashboard' : returnTo)} />}
+        {screen === 'learn' && <Learn onBack={() => setScreen(returnTo === 'learn' ? 'academy' : returnTo)} />}
       </main>
 
       {eva && game && (

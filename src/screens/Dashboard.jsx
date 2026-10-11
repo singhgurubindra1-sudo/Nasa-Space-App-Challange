@@ -13,7 +13,7 @@ const SOURCES = [
   { label: 'NASA Eyes on the Solar System (to compare)', url: 'https://eyes.nasa.gov/apps/solar-system/' },
 ];
 
-export default function Dashboard({ onNext, onMission, saved, onContinue }) {
+export default function Dashboard({ onNext, onAcademy, onMission, saved, onContinue }) {
   return (
     <div className="screen">
       <section className="mission-control">
@@ -30,7 +30,8 @@ export default function Dashboard({ onNext, onMission, saved, onContinue }) {
       {saved && (
         <button className="btn btn-secondary wide" onClick={onContinue}>▶ Continue your saved mission</button>
       )}
-      <button className="btn btn-primary wide launch" onClick={onNext}>🚀 Next: Mission Dashboard — run the 30-sol simulation on the Moon or Mars</button>
+      <button className="btn btn-primary wide launch" onClick={onAcademy}>🎓 Back to the Training Academy</button>
+      <button className="btn btn-secondary wide" onClick={onNext}>🪐 Free play: run the 30-sol simulation on the Moon or Mars</button>
 
       <div className="card how">
         <h3>What is live here?</h3>

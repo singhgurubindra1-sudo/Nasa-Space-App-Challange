@@ -1,10 +1,9 @@
 // Finds the single choice that mattered most.
 // For every sol, we replay the mission with the player's choices, but swap that one sol
 // for a different plan. The sol where a different choice changes the ending the most is the turning point.
-import { createGame, nextSol, outcomeScore, stars, EVENTS, WORLDS, LOSS_TEXT } from './engine.js';
+import { createGame, nextSol, outcomeScore, stars, allowedActions, EVENTS, WORLDS, LOSS_TEXT } from './engine.js';
 import { PRESETS, presetChoice } from './strategies.js';
 
-const ALT_ACTIONS = ['build', 'repair', 'plant', 'explore', 'shelter'];
 const ACTION_WORDS = {
   build: 'Build shielding',
   repair: 'Repair',
@@ -23,13 +22,14 @@ function runFrom(start, choices, fromIndex) {
 }
 
 export function findTurningPoint(finalState) {
-  const { worldId, seed, history } = finalState;
+  const { worldId, seed, history, setup } = finalState;
+  const altActions = allowedActions(finalState);
   const choices = history.map((h) => ({ alloc: h.alloc, action: h.action }));
   const actual = outcomeScore(finalState);
 
   // Rebuild the state at the start of each sol.
   const starts = [];
-  let s = createGame(worldId, seed);
+  let s = createGame(worldId, seed, setup);
   for (const ch of choices) {
     starts.push(s);
     s = nextSol(s, ch).state;
@@ -41,7 +41,7 @@ export function findTurningPoint(finalState) {
     let bestHere = null;
     let worstHere = null;
     for (const preset of Object.keys(PRESETS)) {
-      for (const action of ALT_ACTIONS) {
+      for (const action of altActions) {
         const alt = presetChoice(preset, start, action);
         const after = nextSol(start, alt).state;
         const end = runFrom(after, choices, i + 1);

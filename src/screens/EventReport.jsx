@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import StatusGauges from '../components/StatusGauges.jsx';
 import WhyCard from '../components/WhyCard.jsx';
-import { EVENTS, CALM, WORLDS, G } from '../engine/engine.js';
+import { EVENTS, CALM, WORLDS, missionSols } from '../engine/engine.js';
 
 export default function EventReport({ state, report, onNext }) {
   const [showReport, setShowReport] = useState(false);
@@ -14,7 +14,7 @@ export default function EventReport({ state, report, onNext }) {
     <div className="screen">
       <div className="sol-banner">
         <span>{w.emoji} {w.name}</span>
-        <b>{w.turnLabel} {report.sol} / {G.sols}</b>
+        <b>{w.turnLabel} {report.sol} / {missionSols(state)}</b>
       </div>
 
       {!showReport ? (

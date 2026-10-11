@@ -3,8 +3,12 @@ import {
   Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler,
 } from 'chart.js';
 import Stars from '../components/Stars.jsx';
-import { stars, starCriteria, LOSS_TEXT, WORLDS, G, EVENTS } from '../engine/engine.js';
+import Quiz from '../components/Quiz.jsx';
+import { stars, starCriteria, missionSols, LOSS_TEXT, WORLDS, G, EVENTS } from '../engine/engine.js';
 import { findTurningPoint } from '../engine/turningPoint.js';
+import { explainLoss } from '../engine/causes.js';
+import { moduleById, checkObjectives, nextModule, isUnlocked, FINAL } from '../engine/training.js';
+import { makeResultCode } from '../engine/classroom.js';
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler);
 
@@ -50,11 +54,18 @@ const markers = {
   },
 };
 
-export default function Debrief({ state, onAgain, onOther, onLearn }) {
+export default function Debrief({ state, progress, onAgain, onOther, onLearn, onAcademy, onModule, onQuiz }) {
   const w = WORLDS[state.worldId];
   const n = stars(state);
   const won = state.status === 'won';
   const crit = starCriteria(state);
+  const setup = state.setup || {};
+  const mod = setup.module ? moduleById(setup.module) : null;
+  const training = mod && mod !== FINAL; // short modules: objectives instead of stars
+  const objectives = mod ? checkObjectives(mod, state) : [];
+  const passedNow = mod && objectives.every((o) => o.ok);
+  const upNext = mod && passedNow ? nextModule(progress) : null;
+  const cause = useMemo(() => explainLoss(state), [state]);
   const [tp, setTp] = useState(null);
   const [table, setTable] = useState(false);
   const canvas = useRef(null);
@@ -138,17 +149,54 @@ export default function Debrief({ state, onAgain, onOther, onLearn }) {
       <h2 className="screen-title">Mission debrief</h2>
       <div className={`card verdict ${won ? 'verdict-won' : 'verdict-lost'}`}>
         <div className="verdict-emoji" aria-hidden="true">{won ? (n === 3 ? '🏅' : '🎉') : '🚨'}</div>
-        <h3>{won ? `The crew made it! ${G.sols} ${w.turnLabel.toLowerCase()}s on ${w.name === 'Moon' ? 'the Moon' : 'Mars'}.` : `Mission abort on ${w.turnLabel.toLowerCase()} ${state.history.length}`}</h3>
+        <h3>{won ? `The crew made it! ${missionSols(state)} ${w.turnLabel.toLowerCase()}s on ${w.name === 'Moon' ? 'the Moon' : 'Mars'}.` : `Mission abort on ${w.turnLabel.toLowerCase()} ${state.history.length}`}</h3>
         {!won && <p>{LOSS_TEXT[state.lossReason]}</p>}
-        <Stars n={n} />
-        {n === 3 && <p className="badge">🏅 Mission Ready badge earned!</p>}
-        <ul className="criteria">
-          {crit.map((c) => (
-            <li key={c.id} className={c.ok ? 'ok' : 'no'}>{c.ok ? '✅' : '⬜'} {c.label}</li>
-          ))}
-        </ul>
-        <p className="muted small">Survive = ★ · meet 2 goals = ★★ · meet 3+ goals = ★★★</p>
+        {!training && (
+          <>
+            <Stars n={n} />
+            {n === 3 && <p className="badge">🏅 Mission Ready badge earned!</p>}
+            <ul className="criteria">
+              {crit.map((c) => (
+                <li key={c.id} className={c.ok ? 'ok' : 'no'}>{c.ok ? '✅' : '⬜'} {c.label}</li>
+              ))}
+            </ul>
+            <p className="muted small">Survive = ★ · meet 2 goals = ★★ · meet 3+ goals = ★★★</p>
+          </>
+        )}
       </div>
+
+      {mod && (
+        <div className={`card training-result ${passedNow ? 'verdict-won' : 'verdict-lost'}`}>
+          <p className="muted small">🎓 {mod === FINAL ? 'Final exam' : `Training module ${mod.num}`}: {mod.title.replace('Final exam: ', '')}</p>
+          <h3>{passedNow ? (mod === FINAL ? '🎖 Exam passed! You are a Commander.' : '✅ Module passed!') : '↻ Not passed yet'}</h3>
+          <ul className="criteria">
+            {objectives.map((o) => (
+              <li key={o.id}>{o.ok ? '✅' : '❌'} {o.label}</li>
+            ))}
+          </ul>
+          {!passedNow && <p className="small">Every goal must be met. Read “Why” below, then try again: the events are the same, so you can test a new plan.</p>}
+          <Quiz questions={mod.quiz} onDone={(score) => onQuiz(mod.id, score)} />
+          <div className="row">
+            {passedNow && upNext && isUnlocked(progress, upNext) && upNext !== FINAL && (
+              <button className="btn btn-primary grow" onClick={() => onModule(upNext)}>Next: module {upNext.num} →</button>
+            )}
+            {!passedNow && <button className="btn btn-primary grow" onClick={onAgain}>↻ Try module again</button>}
+            <button className="btn btn-secondary grow" onClick={onAcademy}>🏫 Academy</button>
+          </div>
+        </div>
+      )}
+
+      {cause && (
+        <div className="card cause">
+          <h3>🔍 Why the mission failed: {cause.title.toLowerCase()}</h3>
+          <ol className="cause-chain">
+            {cause.steps.map((t) => <li key={t}>{t}</li>)}
+          </ol>
+          <p className="cause-fix"><b>Next time:</b> {cause.fix}</p>
+        </div>
+      )}
+
+      {setup.classCode && <ClassResult state={state} classCode={setup.classCode} name={progress.name} stars={n} tp={tp} />}
 
       <div className="card turning">
         {tp ? (
@@ -206,11 +254,41 @@ export default function Debrief({ state, onAgain, onOther, onLearn }) {
         </ul>
       </div>
 
-      <div className="row">
-        <button className="btn btn-primary grow" onClick={onAgain}>↻ Play {w.name} again</button>
-        <button className="btn btn-secondary grow" onClick={onOther}>Try {w.id === 'moon' ? 'Mars 🔴' : 'the Moon 🌕'}</button>
-      </div>
+      {!mod && (
+        <div className="row">
+          <button className="btn btn-primary grow" onClick={onAgain}>↻ {setup.classCode ? 'Replay the class mission' : `Play ${w.name} again`}</button>
+          <button className="btn btn-secondary grow" onClick={onOther}>Try {w.id === 'moon' ? 'Mars 🔴' : 'the Moon 🌕'}</button>
+        </div>
+      )}
+      {mod && passedNow && <button className="btn btn-ghost wide" onClick={onAgain}>↻ Practise this module again</button>}
+      <button className="btn btn-ghost wide" onClick={onAcademy}>🏫 Back to the Training Academy</button>
       <button className="btn btn-ghost wide" onClick={onLearn}>📘 Learn more · Teacher page</button>
+    </div>
+  );
+}
+
+// The code a student hands to their teacher for the class board.
+function ClassResult({ state, classCode, name, stars: n, tp }) {
+  const [copied, setCopied] = useState(false);
+  const code = makeResultCode({ name, classCode, state, stars: n, turningSol: tp ? tp.sol : 0 });
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <div className="card class-result">
+      <h3>🏫 Class mission {classCode}</h3>
+      {tp ? (
+        <>
+          <p className="small">Send this result code to your teacher:</p>
+          <code className="result-code">{code}</code>
+          <button className="btn btn-secondary small-btn" onClick={copy}>{copied ? '✅ Copied' : '📋 Copy result code'}</button>
+        </>
+      ) : <p className="muted small">Making your result code…</p>}
     </div>
   );
 }

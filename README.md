@@ -14,9 +14,46 @@ A turn-based outpost game where students (ages 10–15) keep a crew of 4 alive o
 
 Survive 30 Sols puts students in charge of a lunar or Martian outpost. Each sol they split one power budget between life support, food, shielding and storage, then face events drawn from real NASA missions, like the 2018 Mars dust storm. A debrief shows the decision that saved or ended their mission, making engineering trade-offs something kids feel, not just read.
 
-## Dashboard: Live Space Explorer (start page)
+## Training Academy (start page)
 
-The app now opens on a **Live Space Explorer**. You fly from the whole galaxy down to the satellites over your head, and tap anything to get an information card. The **🚀 Next: Mission Dashboard** button (or "Run the 30-sol simulation here" on Jezero or the lunar south pole) leads to the mission page where you pick the Moon or Mars.
+The app opens on the **Astronaut Training Academy**. Students learn one skill at a time in short missions, earn ranks, and finish with a full 30-sol final exam.
+
+| Module | World · length | What it teaches | Pass when… |
+|---|---|---|---|
+| ⚡ 1 Power basics | Mars · 5 sols | Split the power budget; unspent power charges the battery (starts nearly empty) | Survive, battery 50+ kWh, science 25+ |
+| 🌱 2 Food and the greenhouse | Mars · 10 sols | Only 7 sols of packaged food: grow the rest early | Survive, nobody goes hungry |
+| ☢ 3 Radiation and shelter | Moon · 8 days | Shield the hab, shelter from a forecast particle storm (day 5) | Survive, dose ≤ 15 mSv |
+| 🔧 4 Repairs and spare parts | Mars · 10 sols | Two life-support failures, one spare: use the workshop | Survive, fixed at the end, health 70+ |
+| 🌪 5 Power crisis | Mars · 12 sols | A 5-sol dust storm, then a cold snap | Survive, battery never empty |
+| 🎓 Final exam | Moon or Mars · 30 sols | Everything, with random events | Survive |
+
+- Modules 1–5 lock systems and actions that aren't part of the lesson, and script their events, so every attempt teaches the same lesson. Each module unlocks the next. A **teacher or judge preview** checkbox unlocks them all.
+- **Ranks:** Cadet → Junior Astronaut (modules 1–3) → Mission Specialist (1–5) → Commander (final exam).
+- **Training check:** a 2-question quiz after each module, with the reason behind each answer.
+- **Certificate:** a printable "Certificate of Training" (Print or Save as PDF) with the student's name, rank, modules passed and quiz score.
+- Progress is saved only in the browser (`localStorage`), with no login.
+- Rules: [`src/engine/training.js`](src/engine/training.js). Tests check that a careful player passes every module and a one-track plan fails each one.
+
+### Why the mission failed
+
+When a crew is lost, the debrief now explains the **chain of causes**, not just the final meter. The engine records where every loss came from each sol (cold, hunger, stress, oxygen leaks, cosmic rays, solar storms, trips outside), and [`src/engine/causes.js`](src/engine/causes.js) turns that into steps and a fix. Example:
+
+1. Health was lost to cold and stale air (life support running under 75%): −120.
+2. Life support ran below 75% on sols 1–4.
+3. On sols 1–4 you gave life support less than it needed, even though the power was there.
+
+**Next time:** Give life support everything it needs first, every single day.
+
+### Classroom mode (no server)
+
+- **Teacher tools → Make class code** gives a code like `MARS-JMCFHVH` (world + seed + a check letter). The code avoids look-alike letters (no I, L, O or U), and typing O for zero still works.
+- Students type their name and the code under **Class mission**. Everyone gets the same events on the same sols.
+- At the end each student gets a **result code** (`S30-…`) to paste into a shared doc or chat. The teacher pastes them all into the **class board**: ranking, survival rate, the most common reason for failure, the most common turning-point sol and the event that happened on it, plus discussion prompts.
+- Nothing is uploaded. Result codes aren't secret and could be edited, so the board is a discussion tool, not a test.
+
+## Live Space Explorer
+
+The **Live Space Explorer** is under **Explore more** on the academy page. You fly from the whole galaxy down to the satellites over your head, and tap anything to get an information card. The **🚀 Next: Mission Dashboard** button (or "Run the 30-sol simulation here" on Jezero or the lunar south pole) leads to the mission page where you pick the Moon or Mars.
 
 | View | What you see | How real is it? |
 |---|---|---|
@@ -236,7 +273,7 @@ MARS  first-try player wins 45.8% | careful player wins 99.0%
 ```bash
 npm install
 npm start          # play locally at http://localhost:5173 (also: npm run dev)
-npm test           # engine tests
+npm test           # engine, training, cause and classroom tests
 npm run simulate   # balance test (1,000 games per world)
 npm run build      # production build in dist/
 ```
@@ -254,6 +291,9 @@ src/engine/engine.js       game rules: nextSol(state, choices) → new state
 src/engine/turningPoint.js counterfactual replays to find the decision that mattered most
 src/engine/nova.js         Nova's briefing lines (pre-written, no live AI)
 src/engine/strategies.js   preset plans for the debrief + simulated players
+src/engine/training.js     training modules, objectives, quizzes, ranks
+src/engine/causes.js       "why the mission failed" cause chains
+src/engine/classroom.js    class codes, student result codes, class board
 scripts/simulate.mjs       1,000-game balance script
 src/three/solarScene.js    3D Mission Dashboard scene (three.js)
 src/three/explorerScene.js Live Space Explorer: galaxy, solar system, Earth/Moon/Mars orbit, asteroid radar
@@ -274,7 +314,7 @@ src/three/heritage.js      Ingenuity, sample depot, tipped lander, satellites, f
 src/engine/crew.js         crew task rules (one per junior per sol, specialist bonus)
 src/audio/sound.js         Web Audio sound engine (synthesized)
 src/engine/orbits.js       planet positions by date, Earth–target distance, radio delay
-src/screens/               the 7 screens: live explorer dashboard, choose world, briefing, plan, event+report, debrief, learn+teacher
+src/screens/               academy (home), certificate, teacher tools, live explorer, choose world, briefing, plan, event+report, debrief, learn
 ```
 
 ## AI use (disclosure)

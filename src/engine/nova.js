@@ -1,5 +1,5 @@
 // Nova, the AI CAPCOM. Pre-written lines (no live AI calls) so the demo can never fail.
-import { conditions, forecastFor, foodSols, NEEDS, WORLDS, G } from './engine.js';
+import { conditions, forecastFor, foodSols, missionSols, NEEDS, WORLDS, G } from './engine.js';
 
 export function briefing(state) {
   const world = WORLDS[state.worldId];
@@ -9,8 +9,9 @@ export function briefing(state) {
 
   if (state.sol === 1) {
     lines.push(`Welcome to ${world.place}, Commander. This is Nova, your CAPCOM.`);
-    lines.push(`Your job: keep 4 crew alive for 30 ${T.toLowerCase()}s. Every ${T.toLowerCase()} you split the power and pick one action.`);
-    lines.push(world.id === 'moon'
+    lines.push(`Your job: keep 4 crew alive for ${missionSols(state)} ${T.toLowerCase()}s. Every ${T.toLowerCase()} you split the power and pick one action.`);
+    if (state.setup && state.setup.novaTip) lines.push(state.setup.novaTip);
+    else lines.push(world.id === 'moon'
       ? 'Tip: the Moon has no air, so radiation is high. Shielding pays off. Watch for shadows that cut our solar power.'
       : 'Tip: we run on sunlight only. Keep the battery charged and watch the dust forecast.');
   } else {

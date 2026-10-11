@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { conditions, forecastFor, G, WORLDS, SYSTEMS } from '../engine/engine.js';
+import { conditions, forecastFor, G, WORLDS, SYSTEMS, missionSols, allowedSystems, allowedActions } from '../engine/engine.js';
 
 const SYS = {
   lifeSupport: { icon: '🫁', name: 'Life support', what: 'Makes oxygen, recycles 98% of water, heats the hab.' },
@@ -19,6 +19,8 @@ const ACT = {
 export default function PlanSol({ state, onLaunch, onBack, onAllocChange }) {
   const w = WORLDS[state.worldId];
   const c = conditions(state);
+  const systems = allowedSystems(state);
+  const actions = allowedActions(state);
   const [alloc, setAlloc] = useState(() => {
     // Start from yesterday's plan, trimmed to fit today's power (least important first).
     const a = { ...state.lastChoices.alloc };
@@ -31,7 +33,10 @@ export default function PlanSol({ state, onLaunch, onBack, onAllocChange }) {
     }
     return a;
   });
-  const [action, setAction] = useState(state.broken || state.leak ? 'repair' : state.lastChoices.action);
+  const [action, setAction] = useState(() => {
+    const want = state.broken || state.leak ? 'repair' : state.lastChoices.action;
+    return actions.includes(want) ? want : actions[0];
+  });
   useEffect(() => {
     if (onAllocChange) onAllocChange(alloc);
   }, [alloc, onAllocChange]);
@@ -52,13 +57,13 @@ export default function PlanSol({ state, onLaunch, onBack, onAllocChange }) {
   if (alloc.lifeSupport < c.lsPowerNeeded) warnings.push(`Life support needs ${c.lsPowerNeeded} kWh${state.broken ? ' (double, because it is broken)' : ''}. Below that, oxygen and water reserves drain.`);
   if (batteryAfter < 3) warnings.push('The battery will be EMPTY tonight. Two empty nights in a row shut the base down.');
   if (alloc.greenhouse > 0 && alloc.greenhouse < G.greenhouse.minPowerToSurvive) warnings.push(`The greenhouse needs at least ${G.greenhouse.minPowerToSurvive} kWh or the plants wilt.`);
-  if (action === 'repair' && (state.broken || state.leak) && state.spares === 0 && alloc.science < 6) warnings.push('No spare parts: give Science & repair 6+ kWh so the workshop can print one.');
+  if (actions.includes('repair') && systems.includes('science') && action === 'repair' && (state.broken || state.leak) && state.spares === 0 && alloc.science < 6) warnings.push('No spare parts: give Science & repair 6+ kWh so the workshop can print one.');
 
   return (
     <div className="screen">
       <div className="sol-banner">
         <span>{w.emoji} {w.name}</span>
-        <b>{w.turnLabel} {state.sol} / {G.sols}</b>
+        <b>{w.turnLabel} {state.sol} / {missionSols(state)}</b>
       </div>
       <h2 className="screen-title">Plan the {w.turnLabel.toLowerCase()}</h2>
       {fc && <div className="forecast-strip">📡 {fc}</div>}
@@ -78,7 +83,7 @@ export default function PlanSol({ state, onLaunch, onBack, onAllocChange }) {
       </div>
 
       <div className="sliders">
-        {SYSTEMS.map((k) => (
+        {SYSTEMS.filter((k) => systems.includes(k)).map((k) => (
           <div key={k} className={`slider slider-${k}`}>
             <label htmlFor={`s-${k}`}>
               <span><span aria-hidden="true">{SYS[k].icon}</span> {SYS[k].name}</span>
@@ -91,11 +96,12 @@ export default function PlanSol({ state, onLaunch, onBack, onAllocChange }) {
             </small>
           </div>
         ))}
+        {systems.length < SYSTEMS.length && <p className="muted small">🔒 More systems unlock in later training modules.</p>}
       </div>
 
       <h3 className="section-title">Pick one action</h3>
       <div className="actions">
-        {Object.entries(ACT).map(([id, a]) => (
+        {Object.entries(ACT).filter(([id]) => actions.includes(id)).map(([id, a]) => (
           <button key={id} className={`action ${action === id ? 'selected' : ''}`} onClick={() => setAction(id)} aria-pressed={action === id}>
             <span className="action-icon" aria-hidden="true">{a.icon}</span>
             <span className="action-name">{a.name}</span>

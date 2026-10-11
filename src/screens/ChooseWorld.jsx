@@ -26,7 +26,7 @@ export default function ChooseWorld({ world, setWorld, onStart, onContinue, save
     <div className="screen">
       <section className="mission-control">
         <div className="mc-title">
-          <p className="kicker">Mission Dashboard · Step 2</p>
+          <p className="kicker">Mission Dashboard · Free play</p>
           <h1>Survive 30 Sols</h1>
           <p className="lead">Choose your destination. Every sol you get one power budget and one big decision.</p>
         </div>
