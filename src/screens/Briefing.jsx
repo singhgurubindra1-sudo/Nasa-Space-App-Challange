@@ -10,7 +10,7 @@ export default function Briefing({ state, onNext, voice, onEva, onGreenhouse }) 
   return (
     <div className="screen">
       <div className="sol-banner">
-        <span>{w.emoji} {w.name}</span>
+        <span>{w.emoji} {w.name}{state.difficulty && <span className={`diff-badge diff-${state.difficulty.level}`} title={(state.difficulty.reasons || []).join(' ')}>{state.difficulty.emoji} {state.difficulty.name}</span>}</span>
         <b>{w.turnLabel} {state.sol} / {G.sols}</b>
       </div>
       <div className="progress"><div style={{ width: `${((state.sol - 1) / G.sols) * 100}%` }} /></div>

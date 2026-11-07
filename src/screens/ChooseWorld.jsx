@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { WORLDS, G, N } from '../engine/engine.js';
 import { needsSummary } from '../engine/nova.js';
+import DifficultyPicker from '../components/DifficultyPicker.jsx';
 import { TARGETS, ORBIT_SOURCES, targetDistance, formatDelay, daysSinceJ2000 } from '../engine/orbits.js';
 
 // three.js is big; load it separately so the game screens stay fast.
@@ -8,7 +9,7 @@ const SolarSystem = lazy(() => import('../components/SolarSystem.jsx'));
 
 const fmtKm = (km) => (km >= 1e6 ? `${(km / 1e6).toFixed(1)} million km` : `${Math.round(km).toLocaleString()} km`);
 
-export default function ChooseWorld({ world, setWorld, onStart, onContinue, saved, onLearn, onExplorer }) {
+export default function ChooseWorld({ world, setWorld, onStart, onContinue, saved, onLearn, onExplorer, level, setLevel, live, liveStatus }) {
   const [focused, setFocused] = useState(null);
   const [simDays, setSimDays] = useState(() => daysSinceJ2000(Date.now()));
   const todayDays = daysSinceJ2000(Date.now());
@@ -57,6 +58,8 @@ export default function ChooseWorld({ world, setWorld, onStart, onContinue, save
           </button>
         ))}
       </div>
+
+      <DifficultyPicker level={level} setLevel={setLevel} world={world} live={live} liveStatus={liveStatus} />
 
       <div className={`card target-card target-${world}`}>
         <h3>{w.emoji} Target: {w.name} · {w.place}</h3>

@@ -23,13 +23,13 @@ function runFrom(start, choices, fromIndex) {
 }
 
 export function findTurningPoint(finalState) {
-  const { worldId, seed, history } = finalState;
+  const { worldId, seed, history, difficulty } = finalState;
   const choices = history.map((h) => ({ alloc: h.alloc, action: h.action }));
   const actual = outcomeScore(finalState);
 
   // Rebuild the state at the start of each sol.
   const starts = [];
-  let s = createGame(worldId, seed);
+  let s = createGame(worldId, seed, difficulty);
   for (const ch of choices) {
     starts.push(s);
     s = nextSol(s, ch).state;

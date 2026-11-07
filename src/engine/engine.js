@@ -5,6 +5,7 @@
 import numbers from '../data/numbers.json' with { type: 'json' };
 import eventData from '../data/events.json' with { type: 'json' };
 import { makeRng, randInt, pickWeighted } from './rng.js';
+import { resolveDifficulty, DEFAULT_LEVEL } from './difficulty.js';
 
 export const N = numbers.nasa;
 export const G = numbers.game;
@@ -26,7 +27,13 @@ export const NEEDS = {
 
 // ---------- Event schedule (rolled once at the start, so forecasts are honest) ----------
 
-export function generateSchedule(worldId, seed) {
+// Settings for a state: saved games from before difficulty levels play as Astronaut.
+export function difficultyOf(state) {
+  return (state && state.difficulty) || resolveDifficulty(DEFAULT_LEVEL, state ? state.worldId : 'mars');
+}
+
+export function generateSchedule(worldId, seed, difficulty = null) {
+  const diff = difficulty || resolveDifficulty(DEFAULT_LEVEL, worldId);
   const rng = makeRng(seed ^ 0x9e3779b9);
   const pool = eventData.events.filter((e) => (e.worlds[worldId] || 0) > 0);
   const schedule = Array.from({ length: G.sols + 1 }, () => null);
@@ -35,7 +42,8 @@ export function generateSchedule(worldId, seed) {
   const signature = worldId === 'mars' ? 'dust_storm' : 'lunar_shadow';
 
   const place = (sol, ev) => {
-    const duration = randInt(rng, ev.durationMin, ev.durationMax);
+    let duration = randInt(rng, ev.durationMin, ev.durationMax);
+    if (ev.id === 'dust_storm') duration += diff.dustDurationBonus || 0;
     schedule[sol] = { eventId: ev.id, duration, forecast: ev.forecast, falseAlarm: false };
     counts[ev.id] = (counts[ev.id] || 0) + 1;
     if (duration > 1) blockedUntil.long = sol + duration;
@@ -50,17 +58,25 @@ export function generateSchedule(worldId, seed) {
     return s;
   })();
   place(flareSol, EVENTS.solar_flare);
+  // Harder levels and an active real Sun add more particle storms.
+  for (let k = 0; k < (diff.extraFlares || 0); k++) {
+    let s;
+    let tries = 0;
+    do s = randInt(rng, 4, G.sols);
+    while ((schedule[s] || schedule[s - 1]?.duration > 1) && ++tries < 50);
+    if (!schedule[s]) place(s, EVENTS.solar_flare);
+  }
 
   for (let sol = 3; sol <= G.sols; sol++) {
     if (schedule[sol]) continue;
-    if (rng() > 0.3) continue;
+    if (rng() > (diff.eventRate ?? 0.3)) continue;
     const options = pool
       .filter((e) => {
         const isLong = e.durationMax > 1;
         if (isLong && sol <= blockedUntil.long + 2) return false;
         if (isLong && schedule.some((x, i) => x && x.duration > 1 && i > sol && i <= sol + e.durationMax + 2)) return false;
         if (e.id === 'supply_lander' && (sol < 10 || counts[e.id] >= 1)) return false;
-        if ((counts[e.id] || 0) >= 2) return false;
+        if ((counts[e.id] || 0) >= 2 + (e.id === 'solar_flare' ? diff.extraFlares || 0 : 0)) return false;
         return true;
       })
       .map((e) => ({ value: e, weight: e.worlds[worldId] }));
@@ -81,32 +97,37 @@ export function generateSchedule(worldId, seed) {
 
 // ---------- New game ----------
 
-export function createGame(worldId, seed) {
+// difficulty: a level id ('cadet' | 'astronaut' | 'commander') or a resolved settings object
+// (from resolveDifficulty, e.g. for Live NASA). It is stored in the state so replays stay exact.
+export function createGame(worldId, seed, difficulty = DEFAULT_LEVEL) {
   if (!WORLDS[worldId]) throw new Error(`Unknown world ${worldId}`);
+  const diff = typeof difficulty === 'string' ? resolveDifficulty(difficulty, worldId) : difficulty || resolveDifficulty(DEFAULT_LEVEL, worldId);
+  const f = diff.startFactor ?? 1;
   return {
     version: 1,
     worldId,
     seed,
+    difficulty: diff,
     sol: 1,
     status: 'playing',
     lossReason: null,
-    battery: G.batteryStartKwh,
+    battery: Math.min(G.batteryCapacityKwh, Math.round(G.batteryStartKwh * f)),
     o2: G.o2StartKg,
-    water: G.waterStartKg,
-    food: G.foodStartKg,
+    water: Math.min(G.waterTankKg, Math.round(G.waterStartKg * f)),
+    food: Math.min(G.foodMaxKg, Math.round(G.foodStartKg * f)),
     health: G.health.start,
     morale: G.morale.start,
     dose: 0,
     shield: 0,
     maturity: 0,
     science: 0,
-    spares: 1,
+    spares: diff.spares ?? 1,
     crop: 'mixed',
     broken: false,
     leak: false,
     active: [], // ongoing multi-sol events: { id, remaining, solarFactor?, lifeSupportExtraKwh? }
     batteryDeadStreak: 0,
-    schedule: generateSchedule(worldId, seed),
+    schedule: generateSchedule(worldId, seed, diff),
     history: [],
     lastChoices: defaultChoices(),
   };
@@ -283,7 +304,7 @@ export function nextSol(state, choices) {
     event = { id: ev.id, duration: d, title: ev.title, emoji: ev.emoji, effectText: ev.effectText.replace('{d}', d) };
     const e = ev.effect;
     if (e.flare) {
-      const flare = world.flareDoseMsv * (1 - (s.shield / 100) * G.shielding.maxFlareBlock) * (shelter ? G.shelter.flareFactor : 1);
+      const flare = world.flareDoseMsv * (difficultyOf(state).flareDoseMult ?? 1) * (1 - (s.shield / 100) * G.shielding.maxFlareBlock) * (shelter ? G.shelter.flareFactor : 1);
       s.dose += flare;
       s.morale -= 3;
       eventNote = `The particle storm added ${round1(flare)} mSv${shelter ? ' (sheltering cut it by 75%)' : ''}.`;
@@ -302,8 +323,10 @@ export function nextSol(state, choices) {
     if (e.o2) s.o2 += e.o2;
     if (e.food) s.morale += 10;
     if (e.solarFactor !== undefined || e.lifeSupportExtraKwh) s.morale -= 4;
+    const solarFactor = ev.id === 'dust_storm' && difficultyOf(state).dustSolarFactor != null ? difficultyOf(state).dustSolarFactor : e.solarFactor;
+    if (ev.id === 'dust_storm' && solarFactor !== e.solarFactor) event.effectText = `Solar power −${Math.round((1 - solarFactor) * 100)}% for ${d} sols (dust-storm season).`;
     event.newActive = e.solarFactor !== undefined || e.lifeSupportExtraKwh
-      ? { id: ev.id, remaining: d, solarFactor: e.solarFactor, lifeSupportExtraKwh: e.lifeSupportExtraKwh }
+      ? { id: ev.id, remaining: d, solarFactor, lifeSupportExtraKwh: e.lifeSupportExtraKwh }
       : null;
   } else {
     s.morale += 1;
@@ -435,8 +458,8 @@ export function outcomeScore(state) {
 }
 
 // Replay a list of choices from a fresh start (same seed = same events).
-export function replay(worldId, seed, choicesList) {
-  let s = createGame(worldId, seed);
+export function replay(worldId, seed, choicesList, difficulty) {
+  let s = createGame(worldId, seed, difficulty);
   for (const ch of choicesList) {
     if (s.status !== 'playing') break;
     s = nextSol(s, ch).state;

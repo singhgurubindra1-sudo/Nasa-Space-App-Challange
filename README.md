@@ -6,13 +6,65 @@ A turn-based outpost game where students (ages 10–15) keep a crew of 4 alive o
 
 > *"Every sol you get one power budget and one big decision. Will your crew make it home?"*
 
-- Free, no login, works on any phone or laptop
+- Free, works on any phone or laptop. Play as a guest, or sign up to keep your wins and track support tickets
 - One mission takes 10–15 minutes: 30 turns of about 20 seconds
 - Real NASA data drives every number and event
 
 ## Submission summary
 
 Survive 30 Sols puts students in charge of a lunar or Martian outpost. Each sol they split one power budget between life support, food, shielding and storage, then face events drawn from real NASA missions, like the 2018 Mars dust storm. A debrief shows the decision that saved or ended their mission, making engineering trade-offs something kids feel, not just read.
+
+## Accounts, onboarding, difficulty and support (new)
+
+### Sign in / sign up
+- The 👤 button in the top bar opens **Sign in**, **Sign up** (call sign, email, password with a strength meter) and **Forgot password**. Supabase Auth sends the confirmation and reset emails.
+- Guests can still play everything. Signed-in players get a profile with missions won and the hardest level beaten.
+
+### First-visit guide
+- On the very first visit a **Welcome** card explains the site in three steps (Explore → Choose a mission → Survive 30 sols).
+- Every page has a **spotlight tour** (like game tutorials): the page dims, the tool being explained is outlined, and a tip card says what it is for. It runs once per page; the ❔ button replays it, shows the welcome again, or turns tips off.
+- Tour steps live in [`src/onboarding/tours.js`](src/onboarding/tours.js) as plain text plus a CSS selector, so they are easy to edit.
+
+### Difficulty from NASA data
+Pick a level on the Mission Dashboard:
+
+| Level | What changes |
+|---|---|
+| 🧒 Cadet | 2/3 the events, particle storms ×0.75, +15% starting supplies, 2 spare parts |
+| 🧑‍🚀 Astronaut | The original balanced game |
+| 🎖 Commander | +33% events, a second particle storm, storms ×1.3, −10% supplies, no spare part, longer and darker dust storms |
+| 📡 Live NASA | Set by the real Sun over the last 30 days from **NASA DONKI** (X/M-class flares, solar energetic particle storms, CMEs ≥ 1,000 km/s) and, on Mars, by today's **solar longitude (Ls)** from NASA Mars24: during dust-storm season (Ls 180°–330°) storms last up to 2 sols longer and block up to 75% of sunlight |
+
+The page lists every reason ("2 X-class flares in 30 days: particle storms hit 24% harder"). The final settings are saved in the game, so replays and the debrief's turning point stay exact. Balance (600 simulated runs per row, Moon): first-try player wins 68% / 41% / 19% on Cadet / Astronaut / Commander.
+
+### Space jump between pages
+Changing page plays a short hyperspace jump (star streaks, a flash, then the new page). Inside the mission loop it is a quicker 0.6 s version, and it is reduced to a fade for people who turn on "reduce motion".
+
+### Backend (Supabase)
+Schema: [`supabase/migrations/`](supabase/migrations/). Email function: [`supabase/functions/notify-admin/`](supabase/functions/notify-admin/index.ts).
+
+| Table | What it holds | Who can read it |
+|---|---|---|
+| `profiles` | One row per player (call sign, role, wins) | The player; admins |
+| `tickets` | Support tickets: category, priority, subject, description, status, page and browser | The player who filed it; admins. Guests can file but not read |
+| `ticket_replies` | The conversation on a ticket (player ↔ Mission Support) | Ticket owner; admins |
+| `feedback` | 1–5 star rating, topic, message | The author; admins |
+| `signup_notifications` | A log of every new sign-up | Admins |
+
+Every table has row-level security. Players cannot change their own `role`.
+
+**Emails to the team.** A database trigger calls the `notify-admin` Edge Function on every new sign-up, ticket and feedback. The function emails the team through [Resend](https://resend.com) and records the result in `notify_status`. To switch it on, add these secrets in Supabase → Edge Functions → Secrets:
+- `RESEND_API_KEY`: your Resend API key
+- `ADMIN_EMAIL`: where alerts go (comma-separated for several)
+- `FROM_EMAIL` (optional): a sender on a domain you verified in Resend
+
+Until they are set, everything is still stored in the database and `notify_status` says `skipped`.
+
+**Admin console.** Make yourself an admin once (Supabase → SQL editor):
+```sql
+update public.profiles set role = 'admin' where email = 'you@example.com';
+```
+Then the account menu shows **🛠 Admin**: every ticket with filters, status buttons (Open, In progress, Resolved, Closed) and replies, plus new players and feedback with the average rating.
 
 ## Dashboard: Live Space Explorer (start page)
 
