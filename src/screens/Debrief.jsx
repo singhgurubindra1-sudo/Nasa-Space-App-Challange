@@ -136,6 +136,9 @@ export default function Debrief({ state, onAgain, onOther, onLearn }) {
   return (
     <div className="screen">
       <h2 className="screen-title">Mission debrief</h2>
+      {state.difficulty && (
+        <p className="muted small">Difficulty: <span className={`diff-badge diff-${state.difficulty.level}`}>{state.difficulty.emoji} {state.difficulty.name}</span>{state.difficulty.reasons && state.difficulty.reasons.length ? ` · ${state.difficulty.reasons[0]}` : ''}</p>
+      )}
       <div className={`card verdict ${won ? 'verdict-won' : 'verdict-lost'}`}>
         <div className="verdict-emoji" aria-hidden="true">{won ? (n === 3 ? '🏅' : '🎉') : '🚨'}</div>
         <h3>{won ? `The crew made it! ${G.sols} ${w.turnLabel.toLowerCase()}s on ${w.name === 'Moon' ? 'the Moon' : 'Mars'}.` : `Mission abort on ${w.turnLabel.toLowerCase()} ${state.history.length}`}</h3>
