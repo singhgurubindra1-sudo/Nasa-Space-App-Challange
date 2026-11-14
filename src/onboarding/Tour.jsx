@@ -134,7 +134,7 @@ export default function Tour({ tour, onDone }) {
 }
 
 // First-ever visit: a short welcome that explains the whole site in three steps.
-export function Welcome({ onTour, onSkip, onSignUp }) {
+export function Welcome({ onTour, onSkip }) {
   return (
     <div className="modal-backdrop">
       <div className="modal welcome" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
@@ -147,10 +147,7 @@ export function Welcome({ onTour, onSkip, onSignUp }) {
           <li><span>🧑‍🚀</span><div><b>Survive 30 sols</b><small>Split your power, make one big decision a day, and bring your crew of 4 home.</small></div></li>
         </ol>
         <button className="btn btn-primary wide" onClick={onTour} autoFocus>👉 Show me around (1 min)</button>
-        <div className="row">
-          <button className="btn btn-secondary grow" onClick={onSignUp}>✨ Create account</button>
-          <button className="btn btn-ghost grow" onClick={onSkip}>Skip, I'll explore</button>
-        </div>
+        <button className="btn btn-ghost wide" onClick={onSkip}>Skip, I'll explore</button>
         <p className="muted small center">You can replay the tour from the ❔ button at the top, on any page.</p>
       </div>
     </div>
