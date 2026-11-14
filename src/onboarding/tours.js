@@ -10,7 +10,6 @@ export const TOURS = {
       { target: '.ex-warp', title: 'Control time', text: 'Watch it LIVE, or speed time up to see orbits move. The badges tell you if data is live, computed or an estimate.' },
       { target: '.ex-list', title: 'Find things fast', text: 'Every object in this view is listed here too. Tap a name to fly straight to it.' },
       { target: '.launch', title: 'Your mission starts here 🚀', text: 'When you are ready, go to the Mission Dashboard to choose the Moon or Mars and start the 30-sol survival game.' },
-      { target: '[data-tour="account"]', title: 'Save your progress', text: 'Sign up for a free account to keep your wins, and raise support tickets if something goes wrong. Playing as a guest is fine too.' },
       { target: '[data-tour="help"]', title: 'Need help later?', text: 'Tap ❔ any time to replay this tour on any page, or to contact Mission Support.' },
     ],
   },
@@ -62,7 +61,7 @@ export const TOURS = {
   support: {
     title: 'Help Center',
     steps: [
-      { target: '.seg-tabs', title: 'Help Center', text: 'Raise a ticket for bugs or questions, track your tickets, or send feedback. The team gets an email for every new ticket.' },
+      { target: '.seg-tabs', title: 'Help Center', text: 'Raise a ticket for bugs or questions, or send feedback. No account needed: just leave your email if you would like a reply.' },
     ],
   },
 };

@@ -1,20 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase, friendlyError } from '../lib/supabase.js';
-import { useAuth } from '../auth/AuthContext.jsx';
-import { CATEGORIES, PRIORITIES, STATUS, FEEDBACK_CATS, fmtDate, EMAIL_RE } from './common.js';
+import { CATEGORIES, PRIORITIES, FEEDBACK_CATS, EMAIL_RE } from './common.js';
 
 const TABS = [
   { id: 'new', label: '🆘 Raise a ticket' },
-  { id: 'tickets', label: '🎫 My tickets' },
   { id: 'feedback', label: '💬 Feedback' },
-  { id: 'profile', label: '⚙ Profile' },
 ];
 
-export default function Support({ tab: initialTab = 'new', fromScreen, onBack, onSignIn }) {
-  const auth = useAuth();
-  const [tab, setTab] = useState(initialTab);
-  useEffect(() => setTab(initialTab), [initialTab]);
-  const tabs = auth.user ? TABS : TABS.filter((t) => t.id === 'new' || t.id === 'feedback');
+export default function Support({ tab: initialTab = 'new', fromScreen, onBack }) {
+  const [tab, setTab] = useState(TABS.some((t) => t.id === initialTab) ? initialTab : 'new');
+  useEffect(() => setTab(TABS.some((t) => t.id === initialTab) ? initialTab : 'new'), [initialTab]);
 
   return (
     <div className="screen support">
@@ -23,35 +18,26 @@ export default function Support({ tab: initialTab = 'new', fromScreen, onBack, o
       <p className="lead">Found a bug, stuck on a mission, or have an idea? Raise a ticket and the team will get back to you by email.</p>
 
       <div className="seg-tabs wide-tabs" role="tablist">
-        {tabs.map((t) => (
+        {TABS.map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>{t.label}</button>
         ))}
       </div>
 
-      {!auth.user && (
-        <div className="notice info">
-          <p>👤 You are playing as a guest. You can still raise a ticket, but <button className="link-btn inline" onClick={onSignIn}>sign in</button> to track its status and read replies here.</p>
-        </div>
-      )}
-
-      {tab === 'new' && <NewTicket fromScreen={fromScreen} onCreated={() => auth.user && setTab('tickets')} />}
-      {tab === 'tickets' && auth.user && <MyTickets />}
+      {tab === 'new' && <NewTicket fromScreen={fromScreen} />}
       {tab === 'feedback' && <Feedback fromScreen={fromScreen} />}
-      {tab === 'profile' && auth.user && <Profile />}
 
       <button className="btn btn-ghost wide" onClick={onBack}>← Back to the game</button>
     </div>
   );
 }
 
-function NewTicket({ fromScreen, onCreated }) {
-  const auth = useAuth();
+function NewTicket({ fromScreen }) {
   const [form, setForm] = useState({ email: '', category: 'bug', priority: 'normal', subject: '', description: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(null);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
-  const email = auth.user ? auth.user.email : form.email.trim();
+  const email = form.email.trim();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -61,7 +47,7 @@ function NewTicket({ fromScreen, onCreated }) {
     if (form.description.trim().length < 10) return setError('Tell us a bit more: at least 10 characters.');
     setBusy(true);
     const row = {
-      user_id: auth.user ? auth.user.id : null,
+      user_id: null,
       email,
       category: form.category,
       priority: form.priority,
@@ -70,36 +56,30 @@ function NewTicket({ fromScreen, onCreated }) {
       page: String(fromScreen || 'unknown').slice(0, 60),
       user_agent: navigator.userAgent.slice(0, 400),
     };
-    // Guests cannot read tickets back (row-level security), so only signed-in players ask for the id.
-    const q = supabase.from('tickets').insert(row);
-    const { data, error: err } = auth.user ? await q.select('id').single() : await q;
+    // Tickets are write-only from the website (row-level security), so we don't read the row back.
+    const { error: err } = await supabase.from('tickets').insert(row);
     setBusy(false);
     if (err) return setError(friendlyError(err));
-    setDone(data && data.id ? data.id : true);
+    setDone(true);
     setForm({ ...form, subject: '', description: '' });
   };
 
   if (done) {
     return (
       <div className="card notice ok">
-        <h3>✅ Ticket received{done !== true ? ` · #${done}` : ''}</h3>
+        <h3>✅ Ticket received</h3>
         <p>Thanks! Mission Support has been notified. We will reply to <b>{email}</b>.</p>
-        <div className="row">
-          <button className="btn btn-secondary grow" onClick={() => setDone(null)}>Raise another</button>
-          {auth.user && <button className="btn btn-primary grow" onClick={onCreated}>View my tickets</button>}
-        </div>
+        <button className="btn btn-secondary" onClick={() => setDone(null)}>Raise another</button>
       </div>
     );
   }
 
   return (
     <form className="card form" onSubmit={submit} noValidate>
-      {!auth.user && (
-        <label className="field">
-          <span>Your email (so we can reply)</span>
-          <input type="email" value={form.email} onChange={set('email')} placeholder="you@example.com" autoComplete="email" />
-        </label>
-      )}
+      <label className="field">
+        <span>Your email (so we can reply)</span>
+        <input type="email" value={form.email} onChange={set('email')} placeholder="you@example.com" autoComplete="email" />
+      </label>
       <div className="field-row">
         <label className="field">
           <span>Type</span>
@@ -126,92 +106,7 @@ function NewTicket({ fromScreen, onCreated }) {
   );
 }
 
-export function TicketThread({ ticket, staff = false, onChanged }) {
-  const auth = useAuth();
-  const [replies, setReplies] = useState(null);
-  const [body, setBody] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    const { data } = await supabase.from('ticket_replies').select('*').eq('ticket_id', ticket.id).order('created_at');
-    setReplies(data || []);
-  }, [ticket.id]);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const send = async (e) => {
-    e.preventDefault();
-    if (!body.trim()) return;
-    setBusy(true);
-    setError('');
-    const { error: err } = await supabase.from('ticket_replies').insert({ ticket_id: ticket.id, author_id: auth.user.id, is_staff: staff, body: body.trim().slice(0, 5000) });
-    setBusy(false);
-    if (err) return setError(friendlyError(err));
-    setBody('');
-    load();
-    onChanged && onChanged();
-  };
-
-  return (
-    <div className="thread">
-      <div className="msg msg-player">
-        <div className="msg-meta">{ticket.email} · {fmtDate(ticket.created_at)}</div>
-        <p>{ticket.description}</p>
-      </div>
-      {replies === null && <p className="muted small">Loading replies…</p>}
-      {replies && replies.map((r) => (
-        <div key={r.id} className={`msg ${r.is_staff ? 'msg-staff' : 'msg-player'}`}>
-          <div className="msg-meta">{r.is_staff ? '🛰 Mission Support' : 'You'} · {fmtDate(r.created_at)}</div>
-          <p>{r.body}</p>
-        </div>
-      ))}
-      {ticket.status !== 'closed' && (
-        <form onSubmit={send} className="reply-form">
-          <textarea rows={2} value={body} onChange={(e) => setBody(e.target.value)} placeholder={staff ? 'Reply to the player…' : 'Add more details or answer support…'} maxLength={5000} />
-          <button className="btn btn-secondary small-btn" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send reply'}</button>
-        </form>
-      )}
-      {error && <p className="notice bad">⚠ {error}</p>}
-    </div>
-  );
-}
-
-function MyTickets() {
-  const auth = useAuth();
-  const [tickets, setTickets] = useState(null);
-  const [open, setOpen] = useState(null);
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    const { data, error: err } = await supabase.from('tickets').select('*').eq('user_id', auth.user.id).order('updated_at', { ascending: false });
-    if (err) setError(friendlyError(err));
-    setTickets(data || []);
-  }, [auth.user.id]);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (tickets === null) return <p className="muted">Loading your tickets…</p>;
-  if (error) return <p className="notice bad">⚠ {error}</p>;
-  if (!tickets.length) return <div className="card"><p>No tickets yet. 🎉 If anything goes wrong, raise one from the first tab.</p></div>;
-  return (
-    <div className="ticket-list">
-      {tickets.map((t) => (
-        <div key={t.id} className={`card ticket ${open === t.id ? 'open' : ''}`}>
-          <button className="ticket-head" onClick={() => setOpen(open === t.id ? null : t.id)} aria-expanded={open === t.id}>
-            <span className={`status ${STATUS[t.status].cls}`}>{STATUS[t.status].label}</span>
-            <b>#{t.id} {t.subject}</b>
-            <span className="muted small">{CATEGORIES.find((c) => c.id === t.category)?.label} · updated {fmtDate(t.updated_at)}</span>
-          </button>
-          {open === t.id && <TicketThread ticket={t} onChanged={load} />}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function Feedback({ fromScreen }) {
-  const auth = useAuth();
   const [rating, setRating] = useState(0);
   const [category, setCategory] = useState('general');
   const [message, setMessage] = useState('');
@@ -223,12 +118,12 @@ function Feedback({ fromScreen }) {
   const submit = async (e) => {
     e.preventDefault();
     if (!rating) return setError('Tap a star to rate the game first.');
-    const em = auth.user ? auth.user.email : email.trim() || null;
+    const em = email.trim() || null;
     if (em && !EMAIL_RE.test(em)) return setError('That email does not look right (or leave it empty).');
     setBusy(true);
     setError('');
     const { error: err } = await supabase.from('feedback').insert({
-      user_id: auth.user ? auth.user.id : null,
+      user_id: null,
       email: em,
       rating,
       category,
@@ -271,46 +166,12 @@ function Feedback({ fromScreen }) {
         <span>Tell us more (optional)</span>
         <textarea rows={4} value={message} onChange={(e) => setMessage(e.target.value)} maxLength={3000} placeholder="What was the best part? What was confusing?" />
       </label>
-      {!auth.user && (
-        <label className="field">
-          <span>Email (optional, if you'd like an answer)</span>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-        </label>
-      )}
+      <label className="field">
+        <span>Email (optional, if you'd like an answer)</span>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+      </label>
       {error && <p className="notice bad" role="alert">⚠ {error}</p>}
       <button className="btn btn-primary wide" disabled={busy}>{busy ? '⏳ Sending…' : '💬 Send feedback'}</button>
-    </form>
-  );
-}
-
-function Profile() {
-  const auth = useAuth();
-  const [name, setName] = useState(auth.profile?.display_name || '');
-  const [msg, setMsg] = useState('');
-  const save = async (e) => {
-    e.preventDefault();
-    if (name.trim().length < 2) return setMsg('⚠ At least 2 characters.');
-    try {
-      await auth.updateName(name.trim());
-      setMsg('✅ Saved.');
-    } catch (err) {
-      setMsg(`⚠ ${friendlyError(err)}`);
-    }
-  };
-  return (
-    <form className="card form" onSubmit={save}>
-      <div className="profile-stats">
-        <div><b>{auth.profile?.missions_won || 0}</b><span>missions won</span></div>
-        <div><b>{auth.profile?.best_difficulty || '—'}</b><span>hardest level beaten</span></div>
-        <div><b>{auth.profile ? new Date(auth.profile.created_at || Date.now()).toLocaleDateString() : '—'}</b><span>joined</span></div>
-      </div>
-      <label className="field">
-        <span>Call sign</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
-      </label>
-      <p className="muted small">Signed in as {auth.user.email}</p>
-      {msg && <p className="small">{msg}</p>}
-      <button className="btn btn-primary">Save profile</button>
     </form>
   );
 }

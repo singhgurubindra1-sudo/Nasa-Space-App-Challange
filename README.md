@@ -6,7 +6,7 @@ A turn-based outpost game where students (ages 10–15) keep a crew of 4 alive o
 
 > *"Every sol you get one power budget and one big decision. Will your crew make it home?"*
 
-- Free, works on any phone or laptop. Play as a guest, or sign up to keep your wins and track support tickets
+- Free, no login, works on any phone or laptop
 - One mission takes 10–15 minutes: 30 turns of about 20 seconds
 - Real NASA data drives every number and event
 
@@ -14,11 +14,9 @@ A turn-based outpost game where students (ages 10–15) keep a crew of 4 alive o
 
 Survive 30 Sols puts students in charge of a lunar or Martian outpost. Each sol they split one power budget between life support, food, shielding and storage, then face events drawn from real NASA missions, like the 2018 Mars dust storm. A debrief shows the decision that saved or ended their mission, making engineering trade-offs something kids feel, not just read.
 
-## Accounts, onboarding, difficulty and support (new)
+## Onboarding, difficulty and support (new)
 
-### Sign in / sign up
-- The 👤 button in the top bar opens **Sign in**, **Sign up** (call sign, email, password with a strength meter) and **Forgot password**. Supabase Auth sends the confirmation and reset emails.
-- Guests can still play everything. Signed-in players get a profile with missions won and the hardest level beaten.
+There are no accounts: anyone opens the site and plays straight away. Progress is saved in the browser.
 
 ### First-visit guide
 - On the very first visit a **Welcome** card explains the site in three steps (Explore → Choose a mission → Survive 30 sols).
@@ -40,31 +38,24 @@ The page lists every reason ("2 X-class flares in 30 days: particle storms hit 2
 ### Space jump between pages
 Changing page plays a short hyperspace jump (star streaks, a flash, then the new page). Inside the mission loop it is a quicker 0.6 s version, and it is reduced to a fade for people who turn on "reduce motion".
 
-### Backend (Supabase)
+### Support tickets and feedback (Supabase backend)
+The ❔ button and the page footer open the **Help Center**. Anyone can raise a ticket (type, priority, title, description and an email for the reply) or rate the game with 1–5 stars. No account is needed.
+
 Schema: [`supabase/migrations/`](supabase/migrations/). Email function: [`supabase/functions/notify-admin/`](supabase/functions/notify-admin/index.ts).
 
-| Table | What it holds | Who can read it |
-|---|---|---|
-| `profiles` | One row per player (call sign, role, wins) | The player; admins |
-| `tickets` | Support tickets: category, priority, subject, description, status, page and browser | The player who filed it; admins. Guests can file but not read |
-| `ticket_replies` | The conversation on a ticket (player ↔ Mission Support) | Ticket owner; admins |
-| `feedback` | 1–5 star rating, topic, message | The author; admins |
-| `signup_notifications` | A log of every new sign-up | Admins |
+| Table | What it holds |
+|---|---|
+| `tickets` | Support tickets: category, priority, subject, description, status, the page it came from and the browser |
+| `feedback` | 1–5 star rating, topic, optional message and email |
 
-Every table has row-level security. Players cannot change their own `role`.
+Row-level security lets the website **add** tickets and feedback but never read them back, so one player can never see another player's ticket. The team reads and answers them in the Supabase dashboard (**Table Editor → tickets / feedback**), where it can also change a ticket's `status` (open, in_progress, resolved, closed).
 
-**Emails to the team.** A database trigger calls the `notify-admin` Edge Function on every new sign-up, ticket and feedback. The function emails the team through [Resend](https://resend.com) and records the result in `notify_status`. To switch it on, add these secrets in Supabase → Edge Functions → Secrets:
+**Emails to the team.** A database trigger calls the `notify-admin` Edge Function on every new ticket and feedback. The function emails the team through [Resend](https://resend.com) and records the result in `notify_status`. To switch it on, add these secrets in Supabase → Edge Functions → Secrets:
 - `RESEND_API_KEY`: your Resend API key
 - `ADMIN_EMAIL`: where alerts go (comma-separated for several)
 - `FROM_EMAIL` (optional): a sender on a domain you verified in Resend
 
-Until they are set, everything is still stored in the database and `notify_status` says `skipped`.
-
-**Admin console.** Make yourself an admin once (Supabase → SQL editor):
-```sql
-update public.profiles set role = 'admin' where email = 'you@example.com';
-```
-Then the account menu shows **🛠 Admin**: every ticket with filters, status buttons (Open, In progress, Resolved, Closed) and replies, plus new players and feedback with the average rating.
+Until they are set, everything is still stored in the database and `notify_status` says `skipped`. Ticket alerts set the player's email as *reply-to*, so the team can answer straight from its inbox.
 
 ## Dashboard: Live Space Explorer (start page)
 
